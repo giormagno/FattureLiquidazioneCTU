@@ -212,6 +212,15 @@ app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["SESSION_COOKIE_SECURE"] = APP_BASE_URL.lower().startswith("https://")
 
 
+@app.after_request
+def add_no_cache_headers(response):
+    if request.method == "GET" and response.mimetype in {"text/html", "application/json"}:
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
+
+
 def get_connection() -> sqlite3.Connection:
     conn = sqlite3.connect(DB_PATH, timeout=30)
     conn.row_factory = sqlite3.Row
@@ -2139,6 +2148,7 @@ def invoice_row_to_view(row: sqlite3.Row) -> dict:
     }
     xml_path = stored_path(row["xml_path"])
     pdf_path = stored_path(row["pdf_path"])
+    decree_path = stored_path(row["decree_path"])
     return {
         "id": row["id"],
         "source": row["source"],
@@ -2167,6 +2177,7 @@ def invoice_row_to_view(row: sqlite3.Row) -> dict:
         "receipt_date": row["receipt_date"],
         "xml_available": bool(xml_path),
         "pdf_available": bool(pdf_path),
+        "decree_available": bool(decree_path),
         "notes": row["notes"],
         "owner_username": row["owner_username"] if "owner_username" in row.keys() else "",
     }
@@ -3656,6 +3667,17 @@ def scarica_pdf_fattura(invoice_id: int):
     except Exception as exc:
         return jsonify({"errore": f"Errore generazione PDF: {exc}"}), 500
 
+    return send_file(path, as_attachment=True, download_name=path.name, mimetype="application/pdf")
+
+
+@app.route("/fatture/<int:invoice_id>/decreto")
+def scarica_decreto_fattura(invoice_id: int):
+    row = get_accessible_invoice_row(invoice_id)
+    if not row:
+        return jsonify({"errore": "Fattura non trovata"}), 404
+    path = stored_path(row["decree_path"])
+    if not path:
+        return jsonify({"errore": "Decreto non disponibile"}), 404
     return send_file(path, as_attachment=True, download_name=path.name, mimetype="application/pdf")
 
 
