@@ -638,6 +638,11 @@
                     {% if invoice.decree_available %}
                     <a class="button ghost" href="/fatture/{{ invoice.id }}/decreto">Decreto</a>
                     {% endif %}
+                    <button
+                      class="ghost"
+                      data-upload-decree-button
+                      type="button"
+                    >{% if invoice.decree_available %}Sostituisci decreto{% else %}Allega decreto{% endif %}</button>
                     {% if not invoice.xml_available and not invoice.decree_available %}
                     <span class="small-note">Nessun documento</span>
                     {% endif %}
@@ -740,6 +745,11 @@
                   {% if invoice.decree_available %}
                   <a class="button ghost" href="/fatture/{{ invoice.id }}/decreto">Decreto</a>
                   {% endif %}
+                  <button
+                    class="ghost"
+                    data-upload-decree-button
+                    type="button"
+                  >{% if invoice.decree_available %}Sostituisci decreto{% else %}Allega decreto{% endif %}</button>
                   {% if not invoice.xml_available and not invoice.decree_available %}
                   <span class="small-note">Nessun documento disponibile per questa fattura.</span>
                   {% endif %}
@@ -1169,6 +1179,42 @@
     }
   }
 
+  async function uploadDecreeForInvoice(item, file) {
+    const invoiceId = item.dataset.id;
+    const formData = new FormData();
+    formData.append('decreto_pdf', file);
+
+    setFeedback('Caricamento decreto...');
+    try {
+      const response = await fetch(`/fatture/${invoiceId}/decreto`, {
+        method: 'POST',
+        body: formData
+      });
+      const data = await response.json();
+      if (!response.ok || data.errore) throw new Error(data.errore || 'Errore caricamento decreto');
+      setFeedback('Decreto collegato alla fattura.', 1200);
+      setTimeout(() => { window.location.reload(); }, 500);
+    } catch (error) {
+      setFeedback(error.message);
+    }
+  }
+
+  function promptDecreeUpload(item) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/pdf,.pdf';
+    input.style.display = 'none';
+    document.body.appendChild(input);
+    input.addEventListener('change', () => {
+      const file = input.files && input.files[0];
+      if (file) {
+        uploadDecreeForInvoice(item, file);
+      }
+      input.remove();
+    }, { once: true });
+    input.click();
+  }
+
   document.querySelectorAll('[data-status-field]').forEach(input => {
     input.addEventListener('change', event => {
       const item = event.target.closest('[data-invoice-item]');
@@ -1187,6 +1233,13 @@
     button.addEventListener('click', event => {
       const item = event.target.closest('[data-invoice-item]');
       if (item) deleteInvoice(item);
+    });
+  });
+
+  document.querySelectorAll('[data-upload-decree-button]').forEach(button => {
+    button.addEventListener('click', event => {
+      const item = event.target.closest('[data-invoice-item]');
+      if (item) promptDecreeUpload(item);
     });
   });
 
