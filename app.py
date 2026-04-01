@@ -1559,6 +1559,14 @@ def save_bytes(path: Path, content: bytes):
     path.write_bytes(content)
 
 
+def safe_pdf_filename(value: str) -> str:
+    raw = Path(value or "").name.strip()
+    if not raw:
+        return "decreto.pdf"
+    sanitized = re.sub(r"[^A-Za-z0-9._-]+", "_", raw)
+    return sanitized or "decreto.pdf"
+
+
 def stored_path(raw_path: str) -> Path | None:
     raw = (raw_path or "").strip()
     if not raw:
@@ -2178,6 +2186,7 @@ def invoice_row_to_view(row: sqlite3.Row) -> dict:
         "xml_available": bool(xml_path),
         "pdf_available": bool(pdf_path),
         "decree_available": bool(decree_path),
+        "decree_filename": original_import_filename(row["decree_source_filename"]),
         "notes": row["notes"],
         "owner_username": row["owner_username"] if "owner_username" in row.keys() else "",
     }
@@ -2789,6 +2798,42 @@ def lock_invoice(invoice_id: int) -> dict:
         "locked": True,
         "sent": True,
         "receipt_date": row["receipt_date"],
+    }
+
+
+def attach_invoice_decree(invoice_id: int, uploaded_file) -> dict:
+    if not uploaded_file or not uploaded_file.filename:
+        raise ValueError("Seleziona un PDF del decreto")
+
+    filename = safe_pdf_filename(uploaded_file.filename)
+    if not filename.lower().endswith(".pdf"):
+        raise ValueError("Il decreto deve essere un file PDF")
+
+    payload = uploaded_file.read()
+    if not payload:
+        raise ValueError("Il file PDF del decreto e' vuoto")
+
+    row = get_invoice_row(invoice_id)
+    if not row:
+        raise ValueError("Fattura non trovata")
+
+    filename_base = row["filename_base"] or nome_file_base(row["invoice_number"], row["invoice_date"])
+    decree_path = DECREE_OUTPUT_DIR / f"{filename_base}__decreto.pdf"
+    save_bytes(decree_path, payload)
+
+    with get_connection() as conn:
+        conn.execute(
+            """
+            UPDATE invoices
+            SET decree_path = ?, decree_source_filename = ?, updated_at = ?
+            WHERE id = ?
+            """,
+            (str(decree_path), filename, now_iso(), invoice_id),
+        )
+
+    return {
+        "decree_available": True,
+        "decree_filename": filename,
     }
 
 
@@ -3679,6 +3724,21 @@ def scarica_decreto_fattura(invoice_id: int):
     if not path:
         return jsonify({"errore": "Decreto non disponibile"}), 404
     return send_file(path, as_attachment=True, download_name=path.name, mimetype="application/pdf")
+
+
+@app.route("/fatture/<int:invoice_id>/decreto", methods=["POST"])
+def carica_decreto_fattura(invoice_id: int):
+    row = get_accessible_invoice_row(invoice_id)
+    if not row:
+        return jsonify({"errore": "Fattura non trovata"}), 404
+
+    pdf_file = request.files.get("decreto_pdf")
+    try:
+        result = attach_invoice_decree(invoice_id, pdf_file)
+    except ValueError as exc:
+        return jsonify({"errore": str(exc)}), 400
+
+    return jsonify({"ok": True, **result})
 
 
 if __name__ == "__main__":
