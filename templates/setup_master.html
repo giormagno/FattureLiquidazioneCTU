@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Setup Master{% endblock %}
+
+{% block content %}
+<div class="auth-shell">
+  <section class="card">
+    <div class="card-body">
+      <h2>Creazione account master</h2>
+      <p class="muted">Questa configurazione iniziale compare solo finche' non esiste il primo account amministratore.</p>
+
+      {% if error %}
+      <div class="message error">{{ error }}</div>
+      {% endif %}
+
+      <form method="post">
+        <div class="field">
+          <label for="username">Username</label>
+          <input id="username" name="username" type="text" value="{{ defaults.username }}" required>
+        </div>
+        <div class="field">
+          <label for="email">Email</label>
+          <input id="email" name="email" type="email" value="{{ defaults.email }}" required>
+        </div>
+        <div class="row-2">
+          <div class="field">
+            <label for="password">Password</label>
+            <input id="password" name="password" type="password" minlength="8" required>
+          </div>
+          <div class="field">
+            <label for="password_confirm">Conferma password</label>
+            <input id="password_confirm" name="password_confirm" type="password" minlength="8" required>
+          </div>
+        </div>
+        <button class="primary" type="submit" style="width: 100%;">Crea account master</button>
+      </form>
+    </div>
+  </section>
+</div>
+{% endblock %}

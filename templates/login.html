@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}Login{% endblock %}
+
+{% block content %}
+<div class="auth-shell">
+  <section class="card">
+    <div class="card-body">
+      <h2>Accesso</h2>
+      <p class="muted">Accedi con username o email per usare il portale fatture.</p>
+
+      {% if error %}
+      <div class="message error">{{ error }}</div>
+      {% endif %}
+
+      <form method="post">
+        <input type="hidden" name="next" value="{{ next_url }}">
+        <div class="field">
+          <label for="login">Username o email</label>
+          <input id="login" name="login" type="text" value="{{ login_value }}" autocomplete="username" required>
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <input id="password" name="password" type="password" autocomplete="current-password" required>
+        </div>
+        <button class="primary" type="submit" style="width: 100%;">Accedi</button>
+      </form>
+    </div>
+  </section>
+</div>
+{% endblock %}

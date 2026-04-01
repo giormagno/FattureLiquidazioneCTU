@@ -1,0 +1,470 @@
+{% extends "base.html" %}
+
+{% block title %}Nuova Fattura{% endblock %}
+
+{% block content %}
+<div class="grid-two">
+  <section class="card">
+    <div class="card-body">
+      <h2>Compilazione automatica</h2>
+      <p class="muted">
+        Carica il decreto di liquidazione: il sistema estrae i dati con OpenAI, precompila la fattura
+        e salva automaticamente l'XML in archivio.
+      </p>
+
+      <div class="section-label">Decreto di liquidazione</div>
+      <div class="drop-zone" id="drop-zone">
+        <div>Trascina il PDF qui oppure <strong>clicca per selezionarlo</strong></div>
+        <div class="file-name" id="file-label"></div>
+        <input id="pdf-input" type="file" accept=".pdf" class="hidden">
+      </div>
+
+      <div class="badge" id="extraction-badge"></div>
+      <div class="message warning {% if openai_configured %}hidden{% endif %}" id="openai-warning">
+        API OpenAI non configurata: l'estrazione automatica usera' il fallback locale.
+      </div>
+      <div class="message success" id="api-quota-box"></div>
+
+      <div class="section-label">Dati fattura</div>
+      {% if is_master_user %}
+      <div class="field">
+        <label for="owner_user_id">Profilo utente</label>
+        <select id="owner_user_id">
+          {% for owner in owner_choices %}
+          <option value="{{ owner.id }}" {% if owner.id == selected_owner_id %}selected{% endif %}>{{ owner.username }}{% if owner.role == 'master' %} · master{% endif %}</option>
+          {% endfor %}
+        </select>
+        <div class="small-note">Il master puo' generare fatture sul proprio profilo o per conto di un utente.</div>
+      </div>
+      {% else %}
+      <input id="owner_user_id" type="hidden" value="{{ selected_owner_id }}">
+      {% endif %}
+      <div class="row-2">
+        <div class="field">
+          <label for="numero_fattura">Numero fattura</label>
+          <input type="text" id="numero_fattura" value="{{ suggested_invoice_number }}" placeholder="es. 9/e">
+          <div class="small-note">Proposta automatica basata sull'ultimo progressivo presente in archivio.</div>
+        </div>
+        <div class="field">
+          <label for="data_fattura">Data fattura</label>
+          <input type="date" id="data_fattura" value="{{ today }}">
+        </div>
+      </div>
+
+      <div class="section-label">Dati decreto</div>
+      <div class="row-2">
+        <div class="field">
+          <label for="numero_rg">Numero R.G.</label>
+          <input type="text" id="numero_rg" placeholder="es. 7499">
+        </div>
+        <div class="field">
+          <label for="anno_rg">Anno R.G.</label>
+          <input type="text" id="anno_rg" maxlength="4" placeholder="es. 2024">
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="pagante">Parte pagante</label>
+        <input type="text" id="pagante" value="{{ default_payer }}">
+      </div>
+
+      <div class="section-label">Importi</div>
+      <div class="row-2">
+        <div class="field">
+          <label for="compenso">Compenso (€)</label>
+          <input type="number" id="compenso" min="0" step="0.01" placeholder="0.00">
+        </div>
+        <div class="field">
+          <label for="rimborsi_spese">Rimborsi spese (€)</label>
+          <input type="number" id="rimborsi_spese" min="0" step="0.01" value="0.00">
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="data_pagamento">Data pagamento</label>
+        <input type="date" id="data_pagamento" value="{{ today }}">
+      </div>
+
+      <div class="summary">
+        <div class="summary-row"><span>Compenso</span><strong id="s-compenso">€ 0,00</strong></div>
+        <div class="summary-row"><span>Rimborsi spese</span><strong id="s-spese">€ 0,00</strong></div>
+        <div class="summary-row"><span>Imponibile</span><strong id="s-imponibile">€ 0,00</strong></div>
+        <div class="summary-row"><span id="s-label-iva">IVA</span><strong id="s-iva">€ 0,00</strong></div>
+        <div class="summary-row"><span id="s-label-ritenuta">Ritenuta sul compenso</span><strong id="s-ritenuta">€ 0,00</strong></div>
+        <div class="summary-row"><span>Netto pagamento</span><strong id="s-netto">€ 0,00</strong></div>
+      </div>
+
+      <button class="primary" id="btn-genera" style="width: 100%; margin-top: 16px;">Genera fattura</button>
+      <div class="message error hidden" id="error-box"></div>
+      <div class="message success hidden" id="success-box"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="toolbar">
+      <div>
+        <strong id="preview-title">Anteprima fattura</strong>
+        <div class="small-note" id="preview-subtitle">Compila il modulo e premi “Genera fattura”.</div>
+      </div>
+      <div class="toolbar-actions">
+        <button class="secondary hidden" id="btn-xml">Scarica XML</button>
+        <button class="secondary hidden" id="btn-pdf">Scarica PDF</button>
+        <button class="secondary hidden" id="btn-zip">Scarica ZIP</button>
+      </div>
+    </div>
+    <div class="preview-placeholder" id="preview-placeholder">
+      <div class="spinner" id="spinner"></div>
+      <div id="placeholder-text">L'anteprima della fattura comparira' qui.</div>
+    </div>
+    <iframe id="preview-frame" class="preview-frame" sandbox="allow-same-origin"></iframe>
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const dropZone = document.getElementById('drop-zone');
+  const pdfInput = document.getElementById('pdf-input');
+  const fileLabel = document.getElementById('file-label');
+  const extractionBadge = document.getElementById('extraction-badge');
+  const errorBox = document.getElementById('error-box');
+  const successBox = document.getElementById('success-box');
+  const apiQuotaBox = document.getElementById('api-quota-box');
+  const spinner = document.getElementById('spinner');
+  const previewPlaceholder = document.getElementById('preview-placeholder');
+  const placeholderText = document.getElementById('placeholder-text');
+  const previewFrame = document.getElementById('preview-frame');
+  const previewTitle = document.getElementById('preview-title');
+  const previewSubtitle = document.getElementById('preview-subtitle');
+  const btnGenera = document.getElementById('btn-genera');
+  const btnXml = document.getElementById('btn-xml');
+  const btnPdf = document.getElementById('btn-pdf');
+  const btnZip = document.getElementById('btn-zip');
+  const suggestedInvoiceNumbers = {{ suggested_invoice_numbers|tojson }};
+  const ownerProfileDefaults = {{ owner_profile_defaults|tojson }};
+  const ownerApiQuotaSummaries = {{ owner_api_quota_summaries|tojson }};
+  const ivaLabel = document.getElementById('s-label-iva');
+  const ritenutaLabel = document.getElementById('s-label-ritenuta');
+
+  const fields = {
+    owner_user_id: document.getElementById('owner_user_id'),
+    numero_fattura: document.getElementById('numero_fattura'),
+    data_fattura: document.getElementById('data_fattura'),
+    numero_rg: document.getElementById('numero_rg'),
+    anno_rg: document.getElementById('anno_rg'),
+    pagante: document.getElementById('pagante'),
+    compenso: document.getElementById('compenso'),
+    rimborsi_spese: document.getElementById('rimborsi_spese'),
+    data_pagamento: document.getElementById('data_pagamento')
+  };
+
+  let xmlB64 = '';
+  let pdfB64 = '';
+  let filenameBase = '';
+  let extractionMethod = 'manual';
+  let lastOwnerId = String(fields.owner_user_id.value || '');
+
+  function money(value) {
+    return Number(value || 0).toLocaleString('it-IT', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+  }
+
+  function numberValue(el) {
+    return Number(String(el.value || '').replace(',', '.')) || 0;
+  }
+
+  function markAutofill(el, value) {
+    if (value === undefined || value === null || value === '') return;
+    el.value = value;
+    el.classList.add('autofilled');
+    el.addEventListener('input', () => el.classList.remove('autofilled'), { once: true });
+  }
+
+  function showMessage(el, text, type) {
+    el.textContent = text;
+    el.className = 'message ' + type;
+  }
+
+  function hideMessages() {
+    errorBox.className = 'message error hidden';
+    successBox.className = 'message success hidden';
+  }
+
+  function updateSummary() {
+    const compenso = numberValue(fields.compenso);
+    const spese = numberValue(fields.rimborsi_spese);
+    const ownerKey = String(fields.owner_user_id.value || '');
+    const ownerDefaults = ownerProfileDefaults[ownerKey] || {};
+    const vatRate = Number(String(ownerDefaults.vat_rate || '22').replace(',', '.')) || 22;
+    const withholdingRate = Number(String(ownerDefaults.withholding_rate || '20').replace(',', '.')) || 20;
+    const imponibile = compenso + spese;
+    const iva = imponibile * (vatRate / 100);
+    const ritenuta = compenso * (withholdingRate / 100);
+    const netto = imponibile + iva - ritenuta;
+
+    document.getElementById('s-compenso').textContent = '€ ' + money(compenso);
+    document.getElementById('s-spese').textContent = '€ ' + money(spese);
+    document.getElementById('s-imponibile').textContent = '€ ' + money(imponibile);
+    document.getElementById('s-iva').textContent = '€ ' + money(iva);
+    document.getElementById('s-ritenuta').textContent = '€ ' + money(ritenuta);
+    document.getElementById('s-netto').textContent = '€ ' + money(netto);
+    ivaLabel.textContent = `IVA ${money(vatRate)}%`;
+    ritenutaLabel.textContent = `Ritenuta ${money(withholdingRate)}% sul compenso`;
+  }
+
+  function applyOwnerDefaults(force = false) {
+    const ownerKey = String(fields.owner_user_id.value || '');
+    const ownerDefaults = ownerProfileDefaults[ownerKey] || {};
+    const previousDefaults = ownerProfileDefaults[lastOwnerId] || {};
+    const previousPayer = previousDefaults.default_payer || '';
+    const nextPayer = ownerDefaults.default_payer || '';
+    if (force || !fields.pagante.value.trim() || fields.pagante.value.trim() === previousPayer) {
+      fields.pagante.value = nextPayer;
+    }
+    lastOwnerId = ownerKey;
+    updateSummary();
+  }
+
+  function showBadge(text, kind) {
+    extractionBadge.textContent = text;
+    extractionBadge.className = 'badge ' + kind;
+  }
+
+  function quotaMessage(summary) {
+    if (!summary) {
+      return { text: 'Quota API non disponibile.', kind: 'warning' };
+    }
+    if (summary.is_unlimited) {
+      return {
+        text: `Quota API illimitata. ${summary.used_count} chiamate riuscite nella finestra ${summary.window_label}.`,
+        kind: 'success'
+      };
+    }
+    if (summary.is_exhausted) {
+      return {
+        text: `Quota API esaurita: ${summary.used_count} su ${summary.quota_value} chiamate nella finestra ${summary.window_label}. Il fallback locale resta disponibile.`,
+        kind: 'warning'
+      };
+    }
+    const kind = summary.remaining_count <= 1 ? 'warning' : 'success';
+    return {
+      text: `Quota API: ${summary.used_count}/${summary.quota_value} usate, residue ${summary.remaining_count}. Finestra ${summary.window_label}.`,
+      kind
+    };
+  }
+
+  function renderApiQuota(summary) {
+    if (!apiQuotaBox) return;
+    const message = quotaMessage(summary);
+    apiQuotaBox.textContent = message.text;
+    apiQuotaBox.className = 'message ' + message.kind;
+  }
+
+  function buildFormData() {
+    const ownerDefaults = ownerProfileDefaults[String(fields.owner_user_id.value || '')] || {};
+    const fd = new FormData();
+    fd.append('pdf', pdfInput.files[0]);
+    fd.append('owner_user_id', fields.owner_user_id.value);
+    fd.append('numero_fattura', fields.numero_fattura.value.trim());
+    fd.append('data_fattura', fields.data_fattura.value);
+    fd.append('numero_rg', fields.numero_rg.value.trim());
+    fd.append('anno_rg', fields.anno_rg.value.trim());
+    fd.append('pagante', fields.pagante.value.trim() || ownerDefaults.default_payer || 'INPS');
+    fd.append('compenso', String(fields.compenso.value || '').replace(',', '.'));
+    fd.append('rimborsi_spese', String(fields.rimborsi_spese.value || '').replace(',', '.'));
+    fd.append('data_pagamento', fields.data_pagamento.value || fields.data_fattura.value);
+    fd.append('extraction_method', extractionMethod);
+    return fd;
+  }
+
+  function validateForm() {
+    if (!pdfInput.files[0]) return 'Seleziona il PDF del decreto.';
+    if (!fields.numero_fattura.value.trim()) return 'Inserisci il numero fattura.';
+    if (!fields.data_fattura.value) return 'Inserisci la data fattura.';
+    if (!fields.numero_rg.value.trim()) return 'Inserisci il numero R.G.';
+    if (!fields.anno_rg.value.trim()) return 'Inserisci l’anno R.G.';
+    if ((numberValue(fields.compenso) + numberValue(fields.rimborsi_spese)) <= 0) {
+      return 'Inserisci compenso e/o rimborsi spese.';
+    }
+    return '';
+  }
+
+  function triggerDownload(base64Value, filename, mime) {
+    const bytes = Uint8Array.from(atob(base64Value), c => c.charCodeAt(0));
+    const blob = new Blob([bytes], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function analyseFile(file) {
+    fileLabel.textContent = file.name;
+    extractionMethod = 'manual';
+    showBadge('Analisi del decreto in corso…', 'loading');
+
+    const fd = new FormData();
+    fd.append('pdf', file);
+    fd.append('owner_user_id', fields.owner_user_id.value);
+
+    try {
+      const response = await fetch('/estrai', { method: 'POST', body: fd });
+      const data = await response.json();
+      if (!response.ok || data.errore) throw new Error(data.errore || 'Errore di analisi');
+
+      extractionMethod = data.metodo || 'manual';
+      const ownerKey = String(fields.owner_user_id.value || '');
+      if (data.api_quota) {
+        ownerApiQuotaSummaries[ownerKey] = data.api_quota;
+        renderApiQuota(data.api_quota);
+      }
+      markAutofill(fields.numero_rg, data.numero_rg);
+      markAutofill(fields.anno_rg, data.anno_rg);
+      markAutofill(fields.compenso, data.compenso);
+      markAutofill(fields.rimborsi_spese, data.rimborsi_spese || '0.00');
+      markAutofill(fields.pagante, data.pagante || (ownerProfileDefaults[String(fields.owner_user_id.value || '')] || {}).default_payer || 'INPS');
+      updateSummary();
+
+      if (data.warning) {
+        showBadge('Estrazione completata con fallback locale: ' + data.warning, 'partial');
+      } else if (data.metodo === 'openai') {
+        showBadge('Dati rilevati con OpenAI e precompilati nel modulo.', 'ok');
+      } else {
+        showBadge('Dati rilevati con fallback locale. Verifica i campi estratti.', 'partial');
+      }
+    } catch (error) {
+      showBadge('Analisi non riuscita: ' + error.message, 'partial');
+    }
+  }
+
+  dropZone.addEventListener('click', () => pdfInput.click());
+  dropZone.addEventListener('dragover', event => {
+    event.preventDefault();
+    dropZone.classList.add('dragover');
+  });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+  dropZone.addEventListener('drop', event => {
+    event.preventDefault();
+    dropZone.classList.remove('dragover');
+    const file = event.dataTransfer.files[0];
+    if (!file || file.type !== 'application/pdf') return;
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    pdfInput.files = dt.files;
+    analyseFile(file);
+  });
+
+  pdfInput.addEventListener('change', () => {
+    if (pdfInput.files[0]) analyseFile(pdfInput.files[0]);
+  });
+
+  fields.compenso.addEventListener('input', updateSummary);
+  fields.rimborsi_spese.addEventListener('input', updateSummary);
+  fields.owner_user_id.addEventListener('change', () => {
+    const key = String(fields.owner_user_id.value || '');
+    if (suggestedInvoiceNumbers[key]) {
+      fields.numero_fattura.value = suggestedInvoiceNumbers[key];
+    }
+    applyOwnerDefaults();
+    renderApiQuota(ownerApiQuotaSummaries[key]);
+  });
+  fields.data_fattura.addEventListener('change', () => {
+    if (!fields.data_pagamento.value) fields.data_pagamento.value = fields.data_fattura.value;
+  });
+  applyOwnerDefaults(true);
+  renderApiQuota(ownerApiQuotaSummaries[lastOwnerId]);
+
+  btnGenera.addEventListener('click', async () => {
+    hideMessages();
+    const validationError = validateForm();
+    if (validationError) {
+      showMessage(errorBox, validationError, 'error');
+      return;
+    }
+
+    btnGenera.disabled = true;
+    spinner.style.display = 'block';
+    previewFrame.style.display = 'none';
+    previewPlaceholder.style.display = 'flex';
+    placeholderText.textContent = 'Generazione della fattura in corso…';
+    [btnXml, btnPdf, btnZip].forEach(btn => btn.classList.add('hidden'));
+
+    try {
+      const response = await fetch('/genera', { method: 'POST', body: buildFormData() });
+      const data = await response.json();
+      if (!response.ok || data.errore) throw new Error(data.errore || 'Errore di generazione');
+
+      xmlB64 = data.xml_b64 || '';
+      pdfB64 = data.pdf_b64 || '';
+      filenameBase = data.filename_base || 'fattura';
+      if (data.suggested_invoice_number) {
+        fields.numero_fattura.value = data.suggested_invoice_number;
+      }
+
+      previewTitle.textContent = filenameBase;
+      previewSubtitle.textContent = data.storage_message || 'Fattura generata e salvata.';
+      previewFrame.srcdoc = data.preview_html;
+      previewFrame.style.display = 'block';
+      previewPlaceholder.style.display = 'none';
+
+      btnXml.classList.remove('hidden');
+      btnZip.classList.remove('hidden');
+      if (pdfB64) btnPdf.classList.remove('hidden');
+
+      showMessage(successBox, data.storage_message || 'Fattura generata correttamente.', 'success');
+      if (data.pdf_warning) {
+        showMessage(errorBox, 'PDF fattura non disponibile: ' + data.pdf_warning, 'warning');
+      }
+    } catch (error) {
+      placeholderText.textContent = 'L\'anteprima della fattura comparira\' qui.';
+      showMessage(errorBox, error.message, 'error');
+    } finally {
+      btnGenera.disabled = false;
+      spinner.style.display = 'none';
+    }
+  });
+
+  btnXml.addEventListener('click', () => {
+    if (xmlB64) triggerDownload(xmlB64, filenameBase + '.xml', 'application/xml');
+  });
+
+  btnPdf.addEventListener('click', () => {
+    if (pdfB64) triggerDownload(pdfB64, filenameBase + '.pdf', 'application/pdf');
+  });
+
+  btnZip.addEventListener('click', async () => {
+    hideMessages();
+    const validationError = validateForm();
+    if (validationError) {
+      showMessage(errorBox, validationError, 'error');
+      return;
+    }
+
+    btnZip.disabled = true;
+    btnZip.textContent = 'Creazione ZIP…';
+    try {
+      const response = await fetch('/pacchetto', { method: 'POST', body: buildFormData() });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.errore || 'Errore creazione ZIP');
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = (filenameBase || 'fattura') + '.zip';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      showMessage(errorBox, error.message, 'error');
+    } finally {
+      btnZip.disabled = false;
+      btnZip.textContent = 'Scarica ZIP';
+    }
+  });
+</script>
+{% endblock %}

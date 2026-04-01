@@ -1,0 +1,54 @@
+name: fe-bitetto
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: fe-bitetto:latest
+    container_name: fe-bitetto-app
+    restart: unless-stopped
+    init: true
+    environment:
+      TZ: Europe/Rome
+    volumes:
+      - ./storage:/app/storage
+      - ./logs:/app/logs
+      - ./secrets/app.env:/app/.env:ro
+    ports:
+      - "18743:18743"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import json, urllib.request, sys; data=json.load(urllib.request.urlopen('http://127.0.0.1:18743/healthz')); sys.exit(0 if data.get('ok') else 1)\"",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 45s
+    networks:
+      - cloudflare-net
+
+  jobs:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: fe-bitetto:latest
+    container_name: fe-bitetto-jobs
+    restart: unless-stopped
+    init: true
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      TZ: Europe/Rome
+    volumes:
+      - ./storage:/app/storage
+      - ./logs:/app/logs
+      - ./secrets/app.env:/app/.env:ro
+    command: ["python", "scripts/run_daily_jobs_daemon.py"]
+
+networks:
+  cloudflare-net:
+    external: true
