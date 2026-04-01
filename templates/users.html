@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block title %}Utenti{% endblock %}
+
+{% block content %}
+<div class="grid-two" style="grid-template-columns: 380px minmax(0, 1fr);">
+  <section class="card">
+    <div class="card-body">
+      <h2>Nuovo utente</h2>
+      <p class="muted">Solo il master puo' creare e amministrare gli account operativi.</p>
+
+      <form method="post" action="/utenti/crea">
+        <div class="field">
+          <label for="username">Username</label>
+          <input id="username" name="username" type="text" required>
+        </div>
+        <div class="field">
+          <label for="email">Email</label>
+          <input id="email" name="email" type="email" required>
+        </div>
+        <div class="field">
+          <label for="password">Password iniziale</label>
+          <input id="password" name="password" type="password" minlength="8" required>
+        </div>
+
+        <div class="section-label">Permessi extra</div>
+        <div class="field">
+          <label><input type="checkbox" name="can_import_xml_history"> Import XML storico</label>
+        </div>
+        <div class="field">
+          <label><input type="checkbox" name="can_insert_archive_manual"> Inserimento archivio manuale</label>
+        </div>
+        <div class="field">
+          <label><input type="checkbox" name="can_manage_invoice_flags"> Gestione firma, invio e blocco</label>
+        </div>
+
+        <div class="section-label">Quota API</div>
+        <div class="row-2">
+          <div class="field">
+            <label for="quota_value">Numero utilizzi</label>
+            <input id="quota_value" name="quota_value" type="number" min="1" step="1" placeholder="es. 5">
+          </div>
+          <div class="field">
+            <label for="quota_period">Periodo rolling</label>
+            <select id="quota_period" name="quota_period">
+              {% for value, label in quota_period_options %}
+              <option value="{{ value }}" {% if value == 'week' %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label><input type="checkbox" name="is_unlimited"> Quota illimitata</label>
+          <div class="small-note">Se la quota non e' illimitata, inserisci numero utilizzi e periodo rolling.</div>
+        </div>
+
+        <button class="primary" type="submit" style="width: 100%;">Crea utente</button>
+      </form>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="toolbar">
+      <div>
+        <strong>Account presenti</strong>
+        <div class="small-note">Gestisci stato, password e permessi operativi.</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="user-grid">
+        {% for user in users %}
+        {% set quota = api_quota_summaries[user.id] %}
+        <article class="user-card">
+          <h3>{{ user.username }}</h3>
+          <p class="muted" style="margin: 0 0 8px;">{{ user.email or 'Email non impostata' }}</p>
+          <div class="status-badges" style="margin-bottom: 10px;">
+            <span class="pill system">{{ 'Master' if user.role == 'master' else 'Utente' }}</span>
+            <span class="pill {{ 'imported' if user.is_active else 'manual' }}">{{ 'Attivo' if user.is_active else 'Disattivato' }}</span>
+          </div>
+
+          <a class="button ghost" href="/configurazione-fattura?user_id={{ user.id }}" style="width: 100%; text-align: center;">Configura profilo fattura</a>
+
+          <div class="section-label">Consumo API</div>
+          <div class="small-note" style="margin-bottom: 10px;">
+            {% if quota.is_unlimited %}
+            Illimitata. {{ quota.used_count }} chiamate API riuscite nella finestra {{ quota.window_label }}.
+            {% else %}
+            Usate {{ quota.used_count }} su {{ quota.quota_value }}. Residue {{ quota.remaining_count }}. Finestra {{ quota.window_label }}.
+            {% endif %}
+          </div>
+
+          {% if user.role != 'master' %}
+          <form class="inline-form" method="post" action="/utenti/{{ user.id }}/quota">
+            <label class="small-note"><input type="checkbox" name="is_unlimited" {% if quota.is_unlimited %}checked{% endif %}> Quota illimitata</label>
+            <div class="row-2">
+              <div class="field" style="margin-bottom: 0;">
+                <label for="quota-value-{{ user.id }}">Numero utilizzi</label>
+                <input id="quota-value-{{ user.id }}" name="quota_value" type="number" min="1" step="1" value="{{ quota.quota_value if quota.quota_value else '' }}" placeholder="es. 5">
+              </div>
+              <div class="field" style="margin-bottom: 0;">
+                <label for="quota-period-{{ user.id }}">Periodo rolling</label>
+                <select id="quota-period-{{ user.id }}" name="quota_period">
+                  {% for value, label in quota_period_options %}
+                  <option value="{{ value }}" {% if value == quota.quota_period %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+            <button class="secondary" type="submit">Salva quota API</button>
+          </form>
+
+          <form class="inline-form" method="post" action="/utenti/{{ user.id }}/stato">
+            <label class="small-note"><input type="checkbox" name="is_active" {% if user.is_active %}checked{% endif %}> Account attivo</label>
+            <button class="secondary" type="submit">Salva stato</button>
+          </form>
+
+          <form class="inline-form" method="post" action="/utenti/{{ user.id }}/permessi">
+            <label class="small-note"><input type="checkbox" name="can_import_xml_history" {% if user.can_import_xml_history %}checked{% endif %}> Import XML storico</label>
+            <label class="small-note"><input type="checkbox" name="can_insert_archive_manual" {% if user.can_insert_archive_manual %}checked{% endif %}> Inserimento archivio manuale</label>
+            <label class="small-note"><input type="checkbox" name="can_manage_invoice_flags" {% if user.can_manage_invoice_flags %}checked{% endif %}> Gestione firma/invio/blocco</label>
+            <button class="secondary" type="submit">Salva permessi</button>
+          </form>
+          {% else %}
+          <div class="message success" style="margin-top: 12px;">
+            Account master illimitato. Le chiamate API riuscite vengono comunque conteggiate per monitoraggio.
+          </div>
+          {% endif %}
+
+          <form class="inline-form" method="post" action="/utenti/{{ user.id }}/password">
+            <div class="field" style="margin-bottom: 0;">
+              <label for="password-{{ user.id }}">Nuova password</label>
+              <input id="password-{{ user.id }}" name="password" type="password" minlength="8" required>
+            </div>
+            <button class="ghost" type="submit">Aggiorna password</button>
+          </form>
+        </article>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+</div>
+{% endblock %}

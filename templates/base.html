@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Generatore Fattura Elettronica{% endblock %}</title>
+  <style>
+    :root {
+      --bg: #eef2f6;
+      --surface: #ffffff;
+      --surface-soft: #f7f9fc;
+      --border: #d7e0ea;
+      --text: #203246;
+      --muted: #63778d;
+      --primary: #1f5faa;
+      --primary-dark: #17477d;
+      --success-bg: #eaf7ee;
+      --success-border: #b8dec3;
+      --warning-bg: #fff7e7;
+      --warning-border: #efd18a;
+      --danger-bg: #fff0f0;
+      --danger-border: #f0c2c2;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    a { color: inherit; text-decoration: none; }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding: 18px 24px;
+      background: linear-gradient(135deg, #163b63, #245c93);
+      color: #fff;
+      box-shadow: 0 8px 24px rgba(22, 59, 99, 0.18);
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 1.25rem;
+      font-weight: 700;
+    }
+
+    .brand p {
+      margin: 4px 0 0;
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 0.92rem;
+    }
+
+    .nav {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .nav a {
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.1);
+      color: rgba(255, 255, 255, 0.86);
+      font-weight: 600;
+      font-size: 0.92rem;
+    }
+
+    .nav a.active {
+      background: #fff;
+      color: var(--primary-dark);
+    }
+
+    .page {
+      padding: 24px;
+    }
+
+    .grid-two {
+      display: grid;
+      grid-template-columns: 420px minmax(0, 1fr);
+      gap: 20px;
+      align-items: start;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: 0 12px 30px rgba(32, 50, 70, 0.06);
+    }
+
+    .card-body {
+      padding: 20px;
+    }
+
+    .card h2,
+    .card h3 {
+      margin: 0 0 14px;
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .section-label {
+      margin: 18px 0 10px;
+      font-size: 0.77rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #7e8ea3;
+    }
+
+    .field {
+      margin-bottom: 12px;
+    }
+
+    .field label {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 0.86rem;
+      font-weight: 600;
+      color: #486078;
+    }
+
+    .field input,
+    .field select,
+    .field textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1.5px solid var(--border);
+      background: #fff;
+      color: var(--text);
+      font: inherit;
+    }
+
+    .field textarea {
+      resize: vertical;
+      min-height: 88px;
+    }
+
+    .field input:focus,
+    .field select:focus,
+    .field textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(31, 95, 170, 0.12);
+    }
+
+    .field input.autofilled {
+      background: #effaf3;
+      border-color: #56a36a;
+    }
+
+    .row-2,
+    .row-3 {
+      display: grid;
+      gap: 12px;
+    }
+
+    .row-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .row-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+    .drop-zone {
+      border: 2px dashed #adc2d8;
+      border-radius: 14px;
+      padding: 22px 16px;
+      text-align: center;
+      background: var(--surface-soft);
+      cursor: pointer;
+      transition: 0.2s ease;
+    }
+
+    .drop-zone.dragover,
+    .drop-zone:hover {
+      border-color: var(--primary);
+      background: #eef5fd;
+    }
+
+    .drop-zone strong { color: var(--primary-dark); }
+    .drop-zone .file-name {
+      margin-top: 8px;
+      color: var(--primary);
+      font-weight: 700;
+      word-break: break-all;
+    }
+
+    .badge,
+    .message {
+      display: none;
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 0.92rem;
+      line-height: 1.4;
+      margin-top: 12px;
+    }
+
+    .badge.ok,
+    .message.success {
+      display: block;
+      background: var(--success-bg);
+      border: 1px solid var(--success-border);
+      color: #24663a;
+    }
+
+    .badge.partial,
+    .badge.loading,
+    .message.warning {
+      display: block;
+      background: var(--warning-bg);
+      border: 1px solid var(--warning-border);
+      color: #7c5a08;
+    }
+
+    .message.error {
+      display: block;
+      background: var(--danger-bg);
+      border: 1px solid var(--danger-border);
+      color: #b13131;
+    }
+
+    .summary {
+      background: #f3f7fc;
+      border: 1px solid #d4e0ed;
+      border-radius: 14px;
+      padding: 14px;
+      margin-top: 16px;
+    }
+
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 5px 0;
+      font-size: 0.93rem;
+      border-bottom: 1px solid #deebf8;
+    }
+
+    .summary-row:last-child { border-bottom: 0; }
+    .summary-row strong { color: var(--primary-dark); }
+
+    .button,
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 11px 15px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      transition: 0.2s ease;
+    }
+
+    .button.primary,
+    button.primary {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .button.primary:hover,
+    button.primary:hover {
+      background: var(--primary-dark);
+    }
+
+    .button.secondary,
+    button.secondary {
+      background: #dfeaf6;
+      color: var(--primary-dark);
+    }
+
+    .button.secondary:hover,
+    button.secondary:hover {
+      background: #cfdeef;
+    }
+
+    .button.ghost,
+    button.ghost {
+      background: #eef3f8;
+      color: var(--text);
+    }
+
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface-soft);
+      border-radius: 16px 16px 0 0;
+    }
+
+    .toolbar-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .preview-frame {
+      width: 100%;
+      min-height: 900px;
+      border: 0;
+      display: none;
+      background: #fff;
+      border-radius: 0 0 16px 16px;
+    }
+
+    .preview-placeholder {
+      min-height: 520px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      color: var(--muted);
+      padding: 32px;
+    }
+
+    .spinner {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      border: 4px solid #d5e0ea;
+      border-top-color: var(--primary);
+      animation: spin 0.8s linear infinite;
+      display: none;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .filters,
+    .stats {
+      display: grid;
+      gap: 14px;
+    }
+
+    .filters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .stats { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+
+    .stat {
+      padding: 16px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: var(--surface-soft);
+    }
+
+    .stat span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.82rem;
+      margin-bottom: 5px;
+    }
+
+    .stat strong {
+      font-size: 1.15rem;
+      color: var(--primary-dark);
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 1260px;
+    }
+
+    th,
+    td {
+      padding: 12px 10px;
+      border-bottom: 1px solid #e5edf5;
+      text-align: left;
+      vertical-align: middle;
+      font-size: 0.92rem;
+    }
+
+    th {
+      color: var(--muted);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      background: var(--surface-soft);
+    }
+
+    td input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 5px 10px;
+      font-size: 0.78rem;
+      font-weight: 700;
+    }
+
+    .pill.system {
+      background: #e8f0fb;
+      color: #25538a;
+    }
+
+    .pill.manual {
+      background: #f3ede4;
+      color: #7a5a18;
+    }
+
+    .pill.imported {
+      background: #e9f5f1;
+      color: #1d6c56;
+    }
+
+    .status-badges {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .pill.locked-badge {
+      background: #f3ede4;
+      color: #7a5a18;
+    }
+
+    .inline-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .date-display {
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 10px;
+      border-radius: 999px;
+      background: #eff4fa;
+      color: var(--primary-dark);
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+    }
+
+    .row-locked {
+      background: #faf7f1;
+    }
+
+    .lock-button {
+      min-width: 42px;
+      padding: 8px 10px;
+      font-size: 1rem;
+      line-height: 1;
+    }
+
+    .lock-button.locked {
+      background: #f3ede4;
+      color: #7a5a18;
+    }
+
+    .lock-button:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+    }
+
+    .small-note {
+      color: var(--muted);
+      font-size: 0.83rem;
+    }
+
+    .flash-stack {
+      display: grid;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .flash-stack .message {
+      display: block;
+      margin-top: 0;
+    }
+
+    .topbar-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      font-size: 0.88rem;
+    }
+
+    .topbar-user {
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.12);
+      color: rgba(255, 255, 255, 0.92);
+      font-weight: 600;
+    }
+
+    .auth-shell {
+      max-width: 520px;
+      margin: 40px auto;
+    }
+
+    .user-grid {
+      display: grid;
+      gap: 18px;
+    }
+
+    .user-card {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: var(--surface-soft);
+      padding: 16px;
+    }
+
+    .user-card h3 {
+      margin: 0 0 8px;
+    }
+
+    .inline-form {
+      display: grid;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .hidden,
+    .message.hidden,
+    .badge.hidden {
+      display: none !important;
+    }
+
+    @media (max-width: 1120px) {
+      .grid-two { grid-template-columns: 1fr; }
+      .filters,
+      .stats,
+      .row-3 { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 720px) {
+      .page { padding: 16px; }
+      .topbar {
+        padding: 16px;
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .row-2 { grid-template-columns: 1fr; }
+      .toolbar {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+  </style>
+  {% block head_extra %}{% endblock %}
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <h1>Generatore Fattura Elettronica</h1>
+      <p>
+        {% if current_user %}
+          Sessione attiva come {{ current_user.username }} · {{ 'Master' if is_master_user else 'Utente' }}
+        {% else %}
+          Accesso protetto · autenticazione richiesta
+        {% endif %}
+      </p>
+    </div>
+    <div class="topbar-meta">
+      {% if current_user %}
+      <span class="topbar-user">{{ current_user.username }}</span>
+      <nav class="nav">
+        <a href="/" class="{% if request.path == '/' %}active{% endif %}">Nuova fattura</a>
+        <a href="/fatture" class="{% if request.path.startswith('/fatture') %}active{% endif %}">Archivio fatture</a>
+        {% if is_master_user %}
+        <a href="/utenti" class="{% if request.path.startswith('/utenti') %}active{% endif %}">Utenti</a>
+        <a href="/configurazione-fattura" class="{% if request.path.startswith('/configurazione-fattura') %}active{% endif %}">Profili fattura</a>
+        {% endif %}
+        <a href="/logout">Logout</a>
+      </nav>
+      {% elif users_bootstrapped %}
+      <nav class="nav">
+        <a href="/login" class="{% if request.path.startswith('/login') %}active{% endif %}">Login</a>
+      </nav>
+      {% else %}
+      <nav class="nav">
+        <a href="/setup" class="{% if request.path.startswith('/setup') %}active{% endif %}">Setup master</a>
+      </nav>
+      {% endif %}
+    </div>
+  </header>
+
+  <main class="page">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+      <div class="flash-stack">
+        {% for category, message in messages %}
+        <div class="message {{ category if category in ['success', 'error', 'warning'] else 'success' }}">{{ message }}</div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

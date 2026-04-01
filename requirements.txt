@@ -1,0 +1,7 @@
+flask
+lxml
+pdfplumber
+playwright
+waitress
+# Dopo pip install, eseguire anche:
+#   python -m playwright install chromium

@@ -1,0 +1,291 @@
+{% extends "base.html" %}
+
+{% block title %}Profili Fattura{% endblock %}
+
+{% block content %}
+<div class="card" style="margin-bottom: 20px;">
+  <div class="card-body">
+    <h2>Configurazione profilo fattura</h2>
+    <p class="muted">
+      Il master gestisce il profilo XML/PDF per ciascun account. La configurazione selezionata viene usata
+      quando si genera una fattura per quell'utente.
+    </p>
+
+    <form method="get" class="filters" style="grid-template-columns: minmax(0, 1fr) 220px;">
+      <div class="field" style="margin: 0;">
+        <label for="user_id">Utente</label>
+        <select id="user_id" name="user_id">
+          {% for user in users %}
+          <option value="{{ user.id }}" {% if user.id == selected_user_id %}selected{% endif %}>
+            {{ user.username }}{% if user.role == 'master' %} · master{% endif %}{% if not user.is_active %} · disattivato{% endif %}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field" style="margin: 0; display: flex; align-items: end;">
+        <button class="secondary" type="submit" style="width: 100%;">Carica profilo</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<form method="post">
+  <input type="hidden" name="user_id" value="{{ selected_user_id }}">
+
+  <div class="grid-two" style="grid-template-columns: minmax(0, 1fr) 320px;">
+    <section class="card">
+      <div class="card-body">
+        <div class="toolbar" style="margin: -20px -20px 20px; border-radius: 16px 16px 0 0;">
+          <div>
+            <strong>Profilo di {{ selected_user.username }}</strong>
+            <div class="small-note">Le modifiche impattano le nuove fatture generate per questo utente.</div>
+          </div>
+          <button class="primary" type="submit">Salva profilo</button>
+        </div>
+
+        <div class="section-label">Dati trasmissione</div>
+        <div class="row-3">
+          <div class="field">
+            <label for="transmitter_country_code">Paese trasmittente</label>
+            <input id="transmitter_country_code" name="transmitter_country_code" type="text" value="{{ profile.transmitter_country_code }}" required>
+          </div>
+          <div class="field">
+            <label for="transmitter_id_code">Codice trasmittente</label>
+            <input id="transmitter_id_code" name="transmitter_id_code" type="text" value="{{ profile.transmitter_id_code }}" required>
+          </div>
+          <div class="field">
+            <label for="transmission_format">Formato trasmissione</label>
+            <input id="transmission_format" name="transmission_format" type="text" value="{{ profile.transmission_format }}" required>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="recipient_code">Codice destinatario</label>
+          <input id="recipient_code" name="recipient_code" type="text" value="{{ profile.recipient_code }}" required>
+        </div>
+
+        <div class="section-label">Cedente / Prestatore</div>
+        <div class="row-3">
+          <div class="field">
+            <label for="issuer_vat_country">Paese partita IVA</label>
+            <input id="issuer_vat_country" name="issuer_vat_country" type="text" value="{{ profile.issuer_vat_country }}" required>
+          </div>
+          <div class="field">
+            <label for="issuer_vat_code">Partita IVA</label>
+            <input id="issuer_vat_code" name="issuer_vat_code" type="text" value="{{ profile.issuer_vat_code }}" required>
+          </div>
+          <div class="field">
+            <label for="issuer_tax_code">Codice fiscale</label>
+            <input id="issuer_tax_code" name="issuer_tax_code" type="text" value="{{ profile.issuer_tax_code }}" required>
+          </div>
+        </div>
+
+        <div class="row-2">
+          <div class="field">
+            <label for="issuer_first_name">Nome</label>
+            <input id="issuer_first_name" name="issuer_first_name" type="text" value="{{ profile.issuer_first_name }}" required>
+          </div>
+          <div class="field">
+            <label for="issuer_last_name">Cognome</label>
+            <input id="issuer_last_name" name="issuer_last_name" type="text" value="{{ profile.issuer_last_name }}" required>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="issuer_tax_regime">Regime fiscale</label>
+          <input id="issuer_tax_regime" name="issuer_tax_regime" type="text" value="{{ profile.issuer_tax_regime }}" required>
+        </div>
+
+        <div class="row-2">
+          <div class="field">
+            <label for="issuer_address">Indirizzo</label>
+            <input id="issuer_address" name="issuer_address" type="text" value="{{ profile.issuer_address }}" required>
+          </div>
+          <div class="field">
+            <label for="issuer_street_number">Numero civico</label>
+            <input id="issuer_street_number" name="issuer_street_number" type="text" value="{{ profile.issuer_street_number }}">
+          </div>
+        </div>
+
+        <div class="row-4" style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px;">
+          <div class="field">
+            <label for="issuer_zip">CAP</label>
+            <input id="issuer_zip" name="issuer_zip" type="text" value="{{ profile.issuer_zip }}" required>
+          </div>
+          <div class="field">
+            <label for="issuer_city">Comune</label>
+            <input id="issuer_city" name="issuer_city" type="text" value="{{ profile.issuer_city }}" required>
+          </div>
+          <div class="field">
+            <label for="issuer_province">Provincia</label>
+            <input id="issuer_province" name="issuer_province" type="text" value="{{ profile.issuer_province }}">
+          </div>
+          <div class="field">
+            <label for="issuer_country">Nazione</label>
+            <input id="issuer_country" name="issuer_country" type="text" value="{{ profile.issuer_country }}" required>
+          </div>
+        </div>
+
+        <div class="section-label">Cessionario / Committente</div>
+        <div class="row-2">
+          <div class="field">
+            <label for="client_tax_code">Codice fiscale cliente</label>
+            <input id="client_tax_code" name="client_tax_code" type="text" value="{{ profile.client_tax_code }}" required>
+          </div>
+          <div class="field">
+            <label for="client_name">Denominazione cliente</label>
+            <input id="client_name" name="client_name" type="text" value="{{ profile.client_name }}" required>
+          </div>
+        </div>
+
+        <div class="row-2">
+          <div class="field">
+            <label for="client_address">Indirizzo cliente</label>
+            <input id="client_address" name="client_address" type="text" value="{{ profile.client_address }}" required>
+          </div>
+          <div class="field">
+            <label for="client_street_number">Numero civico cliente</label>
+            <input id="client_street_number" name="client_street_number" type="text" value="{{ profile.client_street_number }}">
+          </div>
+        </div>
+
+        <div class="row-4" style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px;">
+          <div class="field">
+            <label for="client_zip">CAP cliente</label>
+            <input id="client_zip" name="client_zip" type="text" value="{{ profile.client_zip }}" required>
+          </div>
+          <div class="field">
+            <label for="client_city">Comune cliente</label>
+            <input id="client_city" name="client_city" type="text" value="{{ profile.client_city }}" required>
+          </div>
+          <div class="field">
+            <label for="client_province">Provincia cliente</label>
+            <input id="client_province" name="client_province" type="text" value="{{ profile.client_province }}">
+          </div>
+          <div class="field">
+            <label for="client_country">Nazione cliente</label>
+            <input id="client_country" name="client_country" type="text" value="{{ profile.client_country }}" required>
+          </div>
+        </div>
+
+        <div class="section-label">Pagamento</div>
+        <div class="row-2">
+          <div class="field">
+            <label for="payment_beneficiary">Beneficiario</label>
+            <input id="payment_beneficiary" name="payment_beneficiary" type="text" value="{{ profile.payment_beneficiary }}" required>
+          </div>
+          <div class="field">
+            <label for="payment_bank_name">Istituto finanziario</label>
+            <input id="payment_bank_name" name="payment_bank_name" type="text" value="{{ profile.payment_bank_name }}" required>
+          </div>
+        </div>
+
+        <div class="row-3">
+          <div class="field">
+            <label for="payment_terms_code">Condizioni pagamento</label>
+            <input id="payment_terms_code" name="payment_terms_code" type="text" value="{{ profile.payment_terms_code }}" required>
+          </div>
+          <div class="field">
+            <label for="payment_method_code">Modalita pagamento</label>
+            <input id="payment_method_code" name="payment_method_code" type="text" value="{{ profile.payment_method_code }}" required>
+          </div>
+          <div class="field">
+            <label for="payment_iban">IBAN</label>
+            <input id="payment_iban" name="payment_iban" type="text" value="{{ profile.payment_iban }}" required>
+          </div>
+        </div>
+
+        <div class="section-label">Regole fiscali e default</div>
+        <div class="row-3">
+          <div class="field">
+            <label for="document_type">Tipo documento</label>
+            <input id="document_type" name="document_type" type="text" value="{{ profile.document_type }}" required>
+          </div>
+          <div class="field">
+            <label for="currency">Divisa</label>
+            <input id="currency" name="currency" type="text" value="{{ profile.currency }}" required>
+          </div>
+          <div class="field">
+            <label for="default_payer">Pagante di default</label>
+            <input id="default_payer" name="default_payer" type="text" value="{{ profile.default_payer }}" required>
+          </div>
+        </div>
+
+        <div class="row-4" style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px;">
+          <div class="field">
+            <label for="vat_rate">Aliquota IVA</label>
+            <input id="vat_rate" name="vat_rate" type="text" value="{{ profile.vat_rate }}" required>
+          </div>
+          <div class="field">
+            <label for="withholding_type">Tipo ritenuta</label>
+            <input id="withholding_type" name="withholding_type" type="text" value="{{ profile.withholding_type }}" required>
+          </div>
+          <div class="field">
+            <label for="withholding_rate">Aliquota ritenuta</label>
+            <input id="withholding_rate" name="withholding_rate" type="text" value="{{ profile.withholding_rate }}" required>
+          </div>
+          <div class="field">
+            <label for="withholding_payment_reason">Causale pagamento ritenuta</label>
+            <input id="withholding_payment_reason" name="withholding_payment_reason" type="text" value="{{ profile.withholding_payment_reason }}" required>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="vat_collection_method">Esigibilita IVA</label>
+          <input id="vat_collection_method" name="vat_collection_method" type="text" value="{{ profile.vat_collection_method }}" required>
+        </div>
+
+        <div class="section-label">Descrizioni fattura</div>
+        <div class="field">
+          <label for="description_main_template">Template descrizione principale</label>
+          <textarea id="description_main_template" name="description_main_template" required>{{ profile.description_main_template }}</textarea>
+        </div>
+        <div class="field">
+          <label for="description_expense_template">Template descrizione rimborsi</label>
+          <textarea id="description_expense_template" name="description_expense_template" required>{{ profile.description_expense_template }}</textarea>
+        </div>
+        <div class="field" style="margin-bottom: 0;">
+          <label for="attachment_description_template">Template descrizione allegato</label>
+          <textarea id="attachment_description_template" name="attachment_description_template" required>{{ profile.attachment_description_template }}</textarea>
+        </div>
+
+        <div style="margin-top: 20px; display: flex; justify-content: flex-end;">
+          <button class="primary" type="submit">Salva profilo</button>
+        </div>
+      </div>
+    </section>
+
+    <aside class="card">
+      <div class="card-body">
+        <h3>Guida rapida</h3>
+        <p class="muted">
+          Le modifiche vengono applicate alle nuove fatture XML/PDF e ai calcoli di IVA/ritenuta della generazione automatica.
+        </p>
+
+        <div class="section-label">Placeholder disponibili</div>
+        <div class="small-note">
+          {% for field_name in template_fields %}
+          <div><code>{{ '{' ~ field_name ~ '}' }}</code></div>
+          {% endfor %}
+        </div>
+
+        <div class="section-label">Esempio</div>
+        <div class="small-note">
+          <div><code>DECRETO n.{numero_rg}-{anno_rg} R.G. ({pagante})</code></div>
+        </div>
+
+        <div class="section-label">Utente selezionato</div>
+        <div class="status-badges">
+          <span class="pill system">{{ 'Master' if selected_user.role == 'master' else 'Utente' }}</span>
+          <span class="pill {{ 'imported' if selected_user.is_active else 'manual' }}">{{ 'Attivo' if selected_user.is_active else 'Disattivato' }}</span>
+        </div>
+
+        <div class="section-label">Nota</div>
+        <p class="small-note" style="margin-bottom: 0;">
+          Se il master genera una fattura per conto di questo utente, il sistema usa comunque questo profilo.
+        </p>
+      </div>
+    </aside>
+  </div>
+</form>
+{% endblock %}
