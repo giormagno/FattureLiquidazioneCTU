@@ -2,14 +2,402 @@
 
 {% block title %}Archivio Fatture{% endblock %}
 
+{% block head_extra %}
+<style>
+  .archive-hero {
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+
+  .archive-hero .card-body {
+    display: grid;
+    gap: 20px;
+    background:
+      radial-gradient(circle at top right, rgba(31, 95, 170, 0.14), transparent 34%),
+      linear-gradient(180deg, #fbfdff 0%, #f4f8fc 100%);
+  }
+
+  .archive-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .archive-heading-copy h2 {
+    margin: 0 0 10px;
+    font-size: 1.6rem;
+  }
+
+  .archive-heading-copy p {
+    margin: 0;
+    max-width: 860px;
+  }
+
+  .archive-highlight {
+    min-width: 210px;
+    padding: 16px 18px;
+    border-radius: 16px;
+    background: #163b63;
+    color: #fff;
+    box-shadow: 0 14px 28px rgba(22, 59, 99, 0.18);
+  }
+
+  .archive-highlight span {
+    display: block;
+    font-size: 0.8rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.74);
+  }
+
+  .archive-highlight strong {
+    display: block;
+    margin-top: 8px;
+    font-size: 1.9rem;
+    line-height: 1;
+  }
+
+  .archive-highlight small {
+    display: block;
+    margin-top: 8px;
+    color: rgba(255, 255, 255, 0.82);
+  }
+
+  .archive-panel {
+    display: grid;
+    gap: 20px;
+  }
+
+  .archive-shell {
+    display: grid;
+    gap: 20px;
+    align-items: start;
+  }
+
+  .archive-shell.with-sidebar {
+    grid-template-columns: 360px minmax(0, 1fr);
+  }
+
+  .archive-shell.no-sidebar {
+    grid-template-columns: 1fr;
+  }
+
+  .archive-shell.with-sidebar .desktop-only {
+    display: none;
+  }
+
+  .archive-shell.with-sidebar .mobile-only {
+    display: grid;
+  }
+
+  .archive-shell.with-sidebar .archive-card-list {
+    display: grid;
+  }
+
+  .archive-main {
+    display: grid;
+    gap: 20px;
+    min-width: 0;
+  }
+
+  .archive-side .card-body,
+  .archive-main .card-body {
+    padding: 22px;
+  }
+
+  .archive-side .card {
+    position: sticky;
+    top: 18px;
+  }
+
+  .archive-section-intro {
+    display: grid;
+    gap: 8px;
+    margin-bottom: 18px;
+  }
+
+  .archive-section-intro h3 {
+    margin: 0;
+  }
+
+  .archive-form-block + .archive-form-block {
+    margin-top: 22px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+  }
+
+  .archive-docs {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .archive-docs .button,
+  .archive-docs button {
+    padding: 9px 12px;
+    font-size: 0.85rem;
+  }
+
+  .archive-table-wrap {
+    overflow: auto;
+  }
+
+  .archive-table {
+    min-width: 1460px;
+  }
+
+  .archive-table td {
+    white-space: nowrap;
+  }
+
+  .archive-number {
+    display: grid;
+    gap: 4px;
+  }
+
+  .archive-number strong {
+    font-size: 0.98rem;
+  }
+
+  .archive-number small {
+    color: var(--muted);
+    font-size: 0.78rem;
+  }
+
+  .archive-status-stack {
+    display: grid;
+    gap: 10px;
+    min-width: 138px;
+  }
+
+  .archive-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text);
+    font-size: 0.86rem;
+    font-weight: 600;
+  }
+
+  .archive-toggle input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+  }
+
+  .archive-date-field {
+    min-width: 145px;
+  }
+
+  .archive-card-list {
+    display: none;
+    gap: 16px;
+  }
+
+  .invoice-card {
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbfd 100%);
+    box-shadow: 0 14px 28px rgba(32, 50, 70, 0.06);
+    overflow: hidden;
+  }
+
+  .invoice-card.locked {
+    background: linear-gradient(180deg, #fffaf3 0%, #f9f3ea 100%);
+  }
+
+  .invoice-card-head {
+    padding: 18px 18px 14px;
+    border-bottom: 1px solid #e4ecf5;
+    display: grid;
+    gap: 12px;
+  }
+
+  .invoice-card-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .invoice-card-title strong {
+    display: block;
+    font-size: 1.02rem;
+  }
+
+  .invoice-card-title small {
+    display: block;
+    margin-top: 4px;
+    color: var(--muted);
+  }
+
+  .invoice-card-body {
+    padding: 18px;
+    display: grid;
+    gap: 16px;
+  }
+
+  .invoice-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .invoice-meta {
+    padding: 12px 14px;
+    border-radius: 14px;
+    border: 1px solid #e4ecf5;
+    background: #fff;
+  }
+
+  .invoice-meta span {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--muted);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .invoice-meta strong {
+    display: block;
+    font-size: 0.96rem;
+    word-break: break-word;
+  }
+
+  .invoice-card-section {
+    display: grid;
+    gap: 10px;
+  }
+
+  .invoice-card-section h4 {
+    margin: 0;
+    font-size: 0.86rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #60768e;
+  }
+
+  .invoice-controls-grid {
+    display: grid;
+    gap: 12px;
+  }
+
+  .invoice-card-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .invoice-card-actions .button,
+  .invoice-card-actions button {
+    flex: 1 1 140px;
+    justify-content: center;
+  }
+
+  .invoice-empty {
+    padding: 24px;
+    border: 1px dashed #b9cadb;
+    border-radius: 18px;
+    background: #f8fbfd;
+    text-align: center;
+  }
+
+  .desktop-only {
+    display: block;
+  }
+
+  .mobile-only {
+    display: none;
+  }
+
+  @media (max-width: 1480px) {
+    .archive-shell.with-sidebar,
+    .archive-shell.no-sidebar {
+      grid-template-columns: 1fr;
+    }
+
+    .archive-side .card {
+      position: static;
+    }
+
+    .archive-shell.no-sidebar .desktop-only {
+      display: none;
+    }
+
+    .archive-shell.no-sidebar .mobile-only {
+      display: grid;
+    }
+
+    .archive-shell.no-sidebar .archive-card-list {
+      display: grid;
+    }
+
+    .invoice-meta-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 1120px) {
+    .archive-shell.with-sidebar,
+    .archive-shell.no-sidebar {
+      grid-template-columns: 1fr;
+    }
+
+    .archive-heading {
+      grid-template-columns: 1fr;
+      display: grid;
+    }
+
+    .archive-highlight {
+      min-width: 0;
+    }
+  }
+
+  @media (max-width: 900px) {
+    .invoice-meta-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 720px) {
+    .archive-heading-copy h2 {
+      font-size: 1.35rem;
+    }
+
+    .invoice-meta-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .archive-docs .button,
+    .archive-docs button,
+    .invoice-card-actions .button,
+    .invoice-card-actions button {
+      width: 100%;
+      flex-basis: 100%;
+    }
+  }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="card" style="margin-bottom: 20px;">
+<section class="card archive-hero">
   <div class="card-body">
-    <h2>Archivio fatture</h2>
-    <p class="muted">
-      Consulta le fatture generate dal sistema, filtra per mese/anno e integra manualmente quelle emesse
-      fuori dal portale.
-    </p>
+    <div class="archive-heading">
+      <div class="archive-heading-copy">
+        <h2>Archivio fatture</h2>
+        <p class="muted">
+          Consulta, completa e scarica tutta la documentazione delle fatture registrate. Da qui puoi filtrare il periodo,
+          scaricare XML, PDF e decreto di liquidazione, aggiornare gli stati operativi e gestire l'archivio in modo piu' chiaro anche da mobile.
+        </p>
+      </div>
+      <div class="archive-highlight">
+        <span>Periodo selezionato</span>
+        <strong>{{ summary.count }}</strong>
+        <small>fatture trovate nell'archivio corrente</small>
+      </div>
+    </div>
 
     <form class="filters" method="get">
       {% if is_master_user %}
@@ -44,7 +432,7 @@
       </div>
     </form>
 
-    <div class="stats" style="margin-top: 18px;">
+    <div class="stats">
       <div class="stat">
         <span>Fatture nel periodo</span>
         <strong>{{ summary.count }}</strong>
@@ -67,212 +455,345 @@
       </div>
     </div>
   </div>
-</div>
+</section>
 
-<div class="grid-two" style="grid-template-columns: {% if can_import_xml_user or can_insert_archive_manual_user %}360px minmax(0, 1fr){% else %}1fr{% endif %};">
+<div class="archive-shell {% if can_import_xml_user or can_insert_archive_manual_user %}with-sidebar{% else %}no-sidebar{% endif %}">
   {% if can_import_xml_user or can_insert_archive_manual_user %}
-  <section class="card">
-    <div class="card-body">
-      {% if can_import_xml_user %}
-      <h3>Importa XML emessi</h3>
-      <p class="muted">
-        Carica uno o piu' file XML gia' emessi: il sistema li legge e li inserisce automaticamente
-        nell'archivio contabile.
-      </p>
-
-      {% if is_master_user %}
-      <div class="field">
-        <label for="xml-owner-user">Utente proprietario</label>
-        <select id="xml-owner-user">
-          {% for owner in owner_choices %}
-          <option value="{{ owner.id }}" {% if owner.id == (selected_owner_id or current_user.id) %}selected{% endif %}>{{ owner.username }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      {% endif %}
-
-      <div class="drop-zone" id="xml-drop-zone" style="margin-bottom: 12px;">
-        <div>Trascina qui i file XML oppure <strong>clicca per selezionarli</strong></div>
-        <div class="file-name" id="xml-file-label"></div>
-        <input id="xml-input" type="file" accept=".xml,text/xml,application/xml" multiple class="hidden">
-      </div>
-
-      <button class="secondary" id="xml-import-submit" style="width: 100%;">Importa XML</button>
-      <button class="ghost hidden" id="xml-force-submit" style="width: 100%; margin-top: 8px;" type="button">Forza importazione</button>
-      <div class="message error hidden" id="xml-import-error"></div>
-      <div class="message success hidden" id="xml-import-success"></div>
-      {% endif %}
-
-      {% if can_insert_archive_manual_user %}
-      <div class="section-label">Inserimento manuale</div>
-      <p class="muted">Aggiungi una fattura gia' emessa fuori dal sistema per avere l'archivio contabile completo.</p>
-
-      {% if is_master_user %}
-      <div class="field">
-        <label for="manual-owner-user">Utente proprietario</label>
-        <select id="manual-owner-user">
-          {% for owner in owner_choices %}
-          <option value="{{ owner.id }}" {% if owner.id == (selected_owner_id or current_user.id) %}selected{% endif %}>{{ owner.username }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      {% endif %}
-
-      <div class="row-2">
-        <div class="field">
-          <label for="m-numero">Numero fattura</label>
-          <input id="m-numero" type="text" placeholder="es. 10/e">
+  <aside class="archive-side">
+    <div class="card">
+      <div class="card-body">
+        <div class="archive-section-intro">
+          <h3>Operazioni archivio</h3>
+          <p class="muted">Importa documenti gia' emessi o inserisci manualmente fatture esterne al portale.</p>
         </div>
-        <div class="field">
-          <label for="m-data">Data fattura</label>
-          <input id="m-data" type="date" value="{{ today }}">
+
+        {% if can_import_xml_user %}
+        <div class="archive-form-block">
+          <h3>Importa XML emessi</h3>
+          <p class="muted">
+            Carica uno o piu' file XML gia' emessi: il sistema li legge e li inserisce automaticamente nell'archivio contabile.
+          </p>
+
+          {% if is_master_user %}
+          <div class="field">
+            <label for="xml-owner-user">Utente proprietario</label>
+            <select id="xml-owner-user">
+              {% for owner in owner_choices %}
+              <option value="{{ owner.id }}" {% if owner.id == (selected_owner_id or current_user.id) %}selected{% endif %}>{{ owner.username }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          {% endif %}
+
+          <div class="drop-zone" id="xml-drop-zone" style="margin-bottom: 12px;">
+            <div>Trascina qui i file XML oppure <strong>clicca per selezionarli</strong></div>
+            <div class="file-name" id="xml-file-label"></div>
+            <input id="xml-input" type="file" accept=".xml,text/xml,application/xml" multiple class="hidden">
+          </div>
+
+          <button class="secondary" id="xml-import-submit" style="width: 100%;">Importa XML</button>
+          <button class="ghost hidden" id="xml-force-submit" style="width: 100%; margin-top: 8px;" type="button">Forza importazione</button>
+          <div class="message error hidden" id="xml-import-error"></div>
+          <div class="message success hidden" id="xml-import-success"></div>
         </div>
-      </div>
+        {% endif %}
 
-      <div class="row-2">
-        <div class="field">
-          <label for="m-rg">Numero R.G. (opzionale)</label>
-          <input id="m-rg" type="text">
+        {% if can_insert_archive_manual_user %}
+        <div class="archive-form-block">
+          <h3>Inserimento manuale</h3>
+          <p class="muted">Aggiungi una fattura gia' emessa fuori dal sistema per avere l'archivio contabile completo.</p>
+
+          {% if is_master_user %}
+          <div class="field">
+            <label for="manual-owner-user">Utente proprietario</label>
+            <select id="manual-owner-user">
+              {% for owner in owner_choices %}
+              <option value="{{ owner.id }}" {% if owner.id == (selected_owner_id or current_user.id) %}selected{% endif %}>{{ owner.username }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          {% endif %}
+
+          <div class="row-2">
+            <div class="field">
+              <label for="m-numero">Numero fattura</label>
+              <input id="m-numero" type="text" placeholder="es. 10/e">
+            </div>
+            <div class="field">
+              <label for="m-data">Data fattura</label>
+              <input id="m-data" type="date" value="{{ today }}">
+            </div>
+          </div>
+
+          <div class="row-2">
+            <div class="field">
+              <label for="m-rg">Numero R.G. (opzionale)</label>
+              <input id="m-rg" type="text">
+            </div>
+            <div class="field">
+              <label for="m-anno-rg">Anno R.G. (opzionale)</label>
+              <input id="m-anno-rg" type="text" maxlength="4">
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="m-pagante">Parte pagante</label>
+            <input id="m-pagante" type="text" value="{{ default_payer }}">
+          </div>
+
+          <div class="row-2">
+            <div class="field">
+              <label for="m-compenso">Compenso (€)</label>
+              <input id="m-compenso" type="number" min="0" step="0.01" placeholder="0.00">
+            </div>
+            <div class="field">
+              <label for="m-spese">Rimborsi spese (€)</label>
+              <input id="m-spese" type="number" min="0" step="0.01" value="0.00">
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="m-data-pagamento">Data pagamento</label>
+            <input id="m-data-pagamento" type="date" value="{{ today }}">
+          </div>
+
+          <div class="field">
+            <label for="m-note">Note</label>
+            <textarea id="m-note" placeholder="Opzionale"></textarea>
+          </div>
+
+          <button class="primary" id="manual-submit" style="width: 100%;">Aggiungi fattura manuale</button>
+          <div class="message error hidden" id="manual-error"></div>
+          <div class="message success hidden" id="manual-success"></div>
         </div>
-        <div class="field">
-          <label for="m-anno-rg">Anno R.G. (opzionale)</label>
-          <input id="m-anno-rg" type="text" maxlength="4">
-        </div>
+        {% endif %}
       </div>
-
-      <div class="field">
-        <label for="m-pagante">Parte pagante</label>
-        <input id="m-pagante" type="text" value="{{ default_payer }}">
-      </div>
-
-      <div class="row-2">
-        <div class="field">
-          <label for="m-compenso">Compenso (€)</label>
-          <input id="m-compenso" type="number" min="0" step="0.01" placeholder="0.00">
-        </div>
-        <div class="field">
-          <label for="m-spese">Rimborsi spese (€)</label>
-          <input id="m-spese" type="number" min="0" step="0.01" value="0.00">
-        </div>
-      </div>
-
-      <div class="field">
-        <label for="m-data-pagamento">Data pagamento</label>
-        <input id="m-data-pagamento" type="date" value="{{ today }}">
-      </div>
-
-      <div class="field">
-        <label for="m-note">Note</label>
-        <textarea id="m-note" placeholder="Opzionale"></textarea>
-      </div>
-
-      <button class="primary" id="manual-submit" style="width: 100%;">Aggiungi fattura manuale</button>
-      <div class="message error hidden" id="manual-error"></div>
-      <div class="message success hidden" id="manual-success"></div>
-      {% endif %}
     </div>
-  </section>
+  </aside>
   {% endif %}
 
-  <section class="card">
-    <div class="toolbar">
-      <div>
-        <strong>Elenco fatture</strong>
-        <div class="small-note">Aggiorna firma, invio e data incasso direttamente in tabella. Il lucchetto blocca la fattura dopo l'invio.</div>
+  <section class="archive-main">
+    <div class="card">
+      <div class="toolbar">
+        <div>
+          <strong>Elenco fatture</strong>
+          <div class="small-note">Ogni fattura mostra documenti disponibili, stato operativo e azioni consentite. Il decreto si puo' scaricare quando presente nello storage.</div>
+        </div>
+        <div class="toolbar-actions">
+          <a class="button secondary" href="/fatture/export.xlsx?year={{ selected_year }}{% if selected_month %}&month={{ selected_month }}{% endif %}{% if selected_owner_id %}&owner_user_id={{ selected_owner_id }}{% endif %}">Esporta XLSX</a>
+          <div class="small-note" id="table-feedback"></div>
+        </div>
       </div>
-      <div class="toolbar-actions">
-        <a class="button secondary" href="/fatture/export.xlsx?year={{ selected_year }}{% if selected_month %}&month={{ selected_month }}{% endif %}{% if selected_owner_id %}&owner_user_id={{ selected_owner_id }}{% endif %}">Esporta XLSX</a>
-        <div class="small-note" id="table-feedback"></div>
-      </div>
-    </div>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Origine</th>
-            {% if is_master_user %}<th>Utente</th>{% endif %}
-            <th>Numero</th>
-            <th>Data</th>
-            <th>R.G.</th>
-            <th>Pagante</th>
-            <th>Compenso</th>
-            <th>Spese</th>
-            <th>Totale</th>
-            <th>Netto</th>
-            <th>XML</th>
-            <th>PDF</th>
-            <th>Firma</th>
-            <th>Invio</th>
-            <th>Blocco</th>
-            <th>Data incasso</th>
-            <th>Elimina</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% if invoices %}
-            {% for invoice in invoices %}
-            <tr data-id="{{ invoice.id }}" data-locked="{{ 1 if invoice.locked else 0 }}" data-sent="{{ 1 if invoice.sent else 0 }}" class="{% if invoice.locked %}row-locked{% endif %}">
-              <td>
+
+      <div class="card-body">
+        {% if invoices %}
+        <div class="archive-table-wrap desktop-only">
+          <table class="archive-table">
+            <thead>
+              <tr>
+                <th>Fattura</th>
+                {% if is_master_user %}<th>Utente</th>{% endif %}
+                <th>Dettagli</th>
+                <th>Importi</th>
+                <th>Documenti</th>
+                <th>Stato</th>
+                <th>Data incasso</th>
+                <th>Azioni</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for invoice in invoices %}
+              <tr data-invoice-item data-id="{{ invoice.id }}" data-locked="{{ 1 if invoice.locked else 0 }}" data-sent="{{ 1 if invoice.sent else 0 }}" class="{% if invoice.locked %}row-locked{% endif %}">
+                <td>
+                  <div class="archive-number">
+                    <strong>{{ invoice.invoice_number }}</strong>
+                    <small>{{ invoice.invoice_date_display }}</small>
+                    <div class="status-badges">
+                      <span class="pill {{ invoice.source }}">{{ invoice.source_label }}</span>
+                      {% if invoice.locked %}
+                      <span class="pill locked-badge">Bloccata</span>
+                      {% endif %}
+                    </div>
+                  </div>
+                </td>
+                {% if is_master_user %}<td>{{ invoice.owner_username or '—' }}</td>{% endif %}
+                <td>
+                  <div><strong>R.G.</strong> {{ invoice.rg_display or '—' }}</div>
+                  <div><strong>Pagante</strong> {{ invoice.payer }}</div>
+                </td>
+                <td>
+                  <div><strong>Compenso</strong> € {{ invoice.compenso }}</div>
+                  <div><strong>Spese</strong> € {{ invoice.expense_reimbursement }}</div>
+                  <div><strong>Totale</strong> € {{ invoice.total_amount }}</div>
+                  <div><strong>Netto</strong> € {{ invoice.net_amount }}</div>
+                </td>
+                <td>
+                  <div class="archive-docs">
+                    {% if invoice.xml_available %}
+                    <a class="button ghost" href="/fatture/{{ invoice.id }}/xml">XML</a>
+                    {% endif %}
+                    {% if invoice.xml_available %}
+                    <a class="button ghost" href="/fatture/{{ invoice.id }}/pdf">{% if invoice.pdf_available %}PDF{% else %}Genera PDF{% endif %}</a>
+                    {% endif %}
+                    {% if invoice.decree_available %}
+                    <a class="button ghost" href="/fatture/{{ invoice.id }}/decreto">Decreto</a>
+                    {% endif %}
+                    {% if not invoice.xml_available and not invoice.decree_available %}
+                    <span class="small-note">Nessun documento</span>
+                    {% endif %}
+                  </div>
+                </td>
+                <td>
+                  <div class="archive-status-stack">
+                    <label class="archive-toggle">
+                      <input class="status-field" data-status-field data-field="firma" type="checkbox" {% if invoice.signed %}checked{% endif %} {% if invoice.locked or not can_manage_invoice_flags_user %}disabled{% endif %}>
+                      <span>Firmata</span>
+                    </label>
+                    <label class="archive-toggle">
+                      <input class="status-field" data-status-field data-field="invio" type="checkbox" {% if invoice.sent %}checked{% endif %} {% if invoice.locked or not can_manage_invoice_flags_user %}disabled{% endif %}>
+                      <span>Inviata</span>
+                    </label>
+                  </div>
+                </td>
+                <td>
+                  <input class="status-field archive-date-field" data-status-field data-field="data_incasso" type="date" value="{{ invoice.receipt_date }}">
+                </td>
+                <td>
+                  <div class="archive-docs">
+                    <button
+                      class="ghost lock-button{% if invoice.locked %} locked{% endif %}"
+                      data-lock-button
+                      type="button"
+                      title="{% if invoice.locked %}Fattura bloccata{% elif invoice.sent %}Blocca fattura{% else %}Il blocco e' disponibile solo dopo l'invio{% endif %}"
+                      {% if not invoice.sent or invoice.locked or not can_manage_invoice_flags_user %}disabled{% endif %}
+                    >Blocca</button>
+                    <button
+                      class="ghost delete-button"
+                      data-delete-button
+                      type="button"
+                      title="{% if invoice.locked %}La fattura bloccata non puo' essere eliminata{% else %}Elimina fattura{% endif %}"
+                      {% if invoice.locked %}disabled{% endif %}
+                    >Elimina</button>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="archive-card-list mobile-only">
+          {% for invoice in invoices %}
+          <article class="invoice-card{% if invoice.locked %} locked{% endif %}" data-invoice-item data-id="{{ invoice.id }}" data-locked="{{ 1 if invoice.locked else 0 }}" data-sent="{{ 1 if invoice.sent else 0 }}">
+            <div class="invoice-card-head">
+              <div class="invoice-card-title">
+                <div>
+                  <strong>Fattura {{ invoice.invoice_number }}</strong>
+                  <small>{{ invoice.invoice_date_display }}{% if is_master_user and invoice.owner_username %} · {{ invoice.owner_username }}{% endif %}</small>
+                </div>
                 <div class="status-badges">
                   <span class="pill {{ invoice.source }}">{{ invoice.source_label }}</span>
                   {% if invoice.locked %}
                   <span class="pill locked-badge">Bloccata</span>
                   {% endif %}
                 </div>
-              </td>
-              {% if is_master_user %}<td>{{ invoice.owner_username or '—' }}</td>{% endif %}
-              <td>{{ invoice.invoice_number }}</td>
-              <td><span class="date-display">{{ invoice.invoice_date_display }}</span></td>
-              <td>{{ invoice.rg_display or '—' }}</td>
-              <td>{{ invoice.payer }}</td>
-              <td>€ {{ invoice.compenso }}</td>
-              <td>€ {{ invoice.expense_reimbursement }}</td>
-              <td>€ {{ invoice.total_amount }}</td>
-              <td>€ {{ invoice.net_amount }}</td>
-              <td>
-                {% if invoice.xml_available %}
-                <a class="button ghost" href="/fatture/{{ invoice.id }}/xml">XML</a>
-                {% else %}
-                <span class="small-note">—</span>
-                {% endif %}
-              </td>
-              <td>
-                {% if invoice.xml_available %}
-                <a class="button ghost" href="/fatture/{{ invoice.id }}/pdf">{% if invoice.pdf_available %}PDF{% else %}Genera PDF{% endif %}</a>
-                {% else %}
-                <span class="small-note">—</span>
-                {% endif %}
-              </td>
-              <td><input class="status-field" data-field="firma" type="checkbox" {% if invoice.signed %}checked{% endif %} {% if invoice.locked or not can_manage_invoice_flags_user %}disabled{% endif %}></td>
-              <td><input class="status-field" data-field="invio" type="checkbox" {% if invoice.sent %}checked{% endif %} {% if invoice.locked or not can_manage_invoice_flags_user %}disabled{% endif %}></td>
-              <td>
-                <button
-                  class="ghost lock-button{% if invoice.locked %} locked{% endif %}"
-                  data-lock-button
-                  type="button"
-                  title="{% if invoice.locked %}Fattura bloccata{% elif invoice.sent %}Blocca fattura{% else %}Il blocco e' disponibile solo dopo l'invio{% endif %}"
-                  {% if not invoice.sent or invoice.locked or not can_manage_invoice_flags_user %}disabled{% endif %}
-                >🔒</button>
-              </td>
-              <td><input class="status-field" data-field="data_incasso" type="date" value="{{ invoice.receipt_date }}"></td>
-              <td>
-                <button
-                  class="ghost delete-button"
-                  data-delete-button
-                  type="button"
-                  title="{% if invoice.locked %}La fattura bloccata non puo' essere eliminata{% else %}Elimina fattura{% endif %}"
-                  {% if invoice.locked %}disabled{% endif %}
-                >Elimina</button>
-              </td>
-            </tr>
-            {% endfor %}
-          {% else %}
-            <tr>
-              <td colspan="{% if is_master_user %}17{% else %}16{% endif %}" class="small-note">Nessuna fattura trovata per il periodo selezionato.</td>
-            </tr>
-          {% endif %}
-        </tbody>
-      </table>
+              </div>
+            </div>
+
+            <div class="invoice-card-body">
+              <div class="invoice-meta-grid">
+                <div class="invoice-meta">
+                  <span>R.G.</span>
+                  <strong>{{ invoice.rg_display or '—' }}</strong>
+                </div>
+                <div class="invoice-meta">
+                  <span>Pagante</span>
+                  <strong>{{ invoice.payer }}</strong>
+                </div>
+                <div class="invoice-meta">
+                  <span>Compenso</span>
+                  <strong>€ {{ invoice.compenso }}</strong>
+                </div>
+                <div class="invoice-meta">
+                  <span>Spese</span>
+                  <strong>€ {{ invoice.expense_reimbursement }}</strong>
+                </div>
+                <div class="invoice-meta">
+                  <span>Totale</span>
+                  <strong>€ {{ invoice.total_amount }}</strong>
+                </div>
+                <div class="invoice-meta">
+                  <span>Netto</span>
+                  <strong>€ {{ invoice.net_amount }}</strong>
+                </div>
+              </div>
+
+              <div class="invoice-card-section">
+                <h4>Documenti</h4>
+                <div class="archive-docs">
+                  {% if invoice.xml_available %}
+                  <a class="button ghost" href="/fatture/{{ invoice.id }}/xml">XML</a>
+                  {% endif %}
+                  {% if invoice.xml_available %}
+                  <a class="button ghost" href="/fatture/{{ invoice.id }}/pdf">{% if invoice.pdf_available %}PDF{% else %}Genera PDF{% endif %}</a>
+                  {% endif %}
+                  {% if invoice.decree_available %}
+                  <a class="button ghost" href="/fatture/{{ invoice.id }}/decreto">Decreto</a>
+                  {% endif %}
+                  {% if not invoice.xml_available and not invoice.decree_available %}
+                  <span class="small-note">Nessun documento disponibile per questa fattura.</span>
+                  {% endif %}
+                </div>
+              </div>
+
+              <div class="invoice-card-section">
+                <h4>Stato operativo</h4>
+                <div class="invoice-controls-grid">
+                  <label class="archive-toggle">
+                    <input class="status-field" data-status-field data-field="firma" type="checkbox" {% if invoice.signed %}checked{% endif %} {% if invoice.locked or not can_manage_invoice_flags_user %}disabled{% endif %}>
+                    <span>Firmata</span>
+                  </label>
+                  <label class="archive-toggle">
+                    <input class="status-field" data-status-field data-field="invio" type="checkbox" {% if invoice.sent %}checked{% endif %} {% if invoice.locked or not can_manage_invoice_flags_user %}disabled{% endif %}>
+                    <span>Inviata</span>
+                  </label>
+                  <div class="field" style="margin: 0;">
+                    <label>Data incasso</label>
+                    <input class="status-field" data-status-field data-field="data_incasso" type="date" value="{{ invoice.receipt_date }}">
+                  </div>
+                </div>
+              </div>
+
+              <div class="invoice-card-section">
+                <h4>Azioni</h4>
+                <div class="invoice-card-actions">
+                  <button
+                    class="ghost lock-button{% if invoice.locked %} locked{% endif %}"
+                    data-lock-button
+                    type="button"
+                    title="{% if invoice.locked %}Fattura bloccata{% elif invoice.sent %}Blocca fattura{% else %}Il blocco e' disponibile solo dopo l'invio{% endif %}"
+                    {% if not invoice.sent or invoice.locked or not can_manage_invoice_flags_user %}disabled{% endif %}
+                  >Blocca fattura</button>
+                  <button
+                    class="ghost delete-button"
+                    data-delete-button
+                    type="button"
+                    title="{% if invoice.locked %}La fattura bloccata non puo' essere eliminata{% else %}Elimina fattura{% endif %}"
+                    {% if invoice.locked %}disabled{% endif %}
+                  >Elimina fattura</button>
+                </div>
+              </div>
+            </div>
+          </article>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="invoice-empty">
+          <strong>Nessuna fattura trovata per il periodo selezionato.</strong>
+          <p class="muted" style="margin: 8px 0 0;">Prova a cambiare mese, anno o utente, oppure inserisci documenti dall'area laterale.</p>
+        </div>
+        {% endif %}
+      </div>
     </div>
   </section>
 </div>
@@ -301,6 +822,18 @@
     if (!el) return;
     el.textContent = text;
     el.className = 'message ' + type;
+  }
+
+  function setFeedback(text, clearAfter = 0) {
+    if (!tableFeedback) return;
+    tableFeedback.textContent = text;
+    if (clearAfter) {
+      setTimeout(() => {
+        if (tableFeedback.textContent === text) {
+          tableFeedback.textContent = '';
+        }
+      }, clearAfter);
+    }
   }
 
   function resetManualMessages() {
@@ -430,42 +963,60 @@
     }, 900);
   }
 
-  function syncRowState(row, state = {}) {
-    const signedField = row.querySelector('[data-field="firma"]');
-    const sentField = row.querySelector('[data-field="invio"]');
-    const receiptField = row.querySelector('[data-field="data_incasso"]');
-    const lockButton = row.querySelector('[data-lock-button]');
-    const deleteButton = row.querySelector('[data-delete-button]');
-    const isLocked = Boolean(state.locked ?? Number(row.dataset.locked || '0'));
-    const isSent = Boolean(state.sent ?? sentField.checked);
-    const isSigned = Boolean(state.signed ?? signedField.checked);
-    const receiptDate = state.receipt_date ?? receiptField.value;
+  function getInvoiceItems(invoiceId) {
+    return document.querySelectorAll(`[data-invoice-item][data-id="${invoiceId}"]`);
+  }
 
-    row.dataset.locked = isLocked ? '1' : '0';
-    row.dataset.sent = isSent ? '1' : '0';
-    row.classList.toggle('row-locked', isLocked);
+  function syncInvoiceItemState(item, state = {}) {
+    const signedField = item.querySelector('[data-field="firma"]');
+    const sentField = item.querySelector('[data-field="invio"]');
+    const receiptField = item.querySelector('[data-field="data_incasso"]');
+    const lockButton = item.querySelector('[data-lock-button]');
+    const deleteButton = item.querySelector('[data-delete-button]');
+    const currentLocked = Number(item.dataset.locked || '0') === 1;
+    const currentSent = sentField ? sentField.checked : Number(item.dataset.sent || '0') === 1;
+    const currentSigned = signedField ? signedField.checked : false;
 
-    signedField.checked = isSigned;
-    sentField.checked = isSent;
-    if (typeof receiptDate === 'string') {
+    const isLocked = Boolean(state.locked ?? currentLocked);
+    const isSent = Boolean(state.sent ?? currentSent);
+    const isSigned = Boolean(state.signed ?? currentSigned);
+    const receiptDate = typeof state.receipt_date === 'string'
+      ? state.receipt_date
+      : (receiptField ? receiptField.value : '');
+
+    item.dataset.locked = isLocked ? '1' : '0';
+    item.dataset.sent = isSent ? '1' : '0';
+    item.classList.toggle('row-locked', isLocked);
+    item.classList.toggle('locked', isLocked);
+
+    if (signedField) {
+      signedField.checked = isSigned;
+      signedField.disabled = isLocked || !canManageInvoiceFlags;
+    }
+    if (sentField) {
+      sentField.checked = isSent;
+      sentField.disabled = isLocked || !canManageInvoiceFlags;
+    }
+    if (receiptField && typeof receiptDate === 'string') {
       receiptField.value = receiptDate;
     }
-
-    signedField.disabled = isLocked || !canManageInvoiceFlags;
-    sentField.disabled = isLocked || !canManageInvoiceFlags;
-    receiptField.disabled = false;
-
-    lockButton.disabled = isLocked || !isSent || !canManageInvoiceFlags;
-    lockButton.classList.toggle('locked', isLocked);
-    lockButton.title = isLocked
-      ? 'Fattura bloccata'
-      : (isSent ? 'Blocca fattura' : "Il blocco e' disponibile solo dopo l'invio");
+    if (lockButton) {
+      lockButton.disabled = isLocked || !isSent || !canManageInvoiceFlags;
+      lockButton.classList.toggle('locked', isLocked);
+      lockButton.title = isLocked
+        ? 'Fattura bloccata'
+        : (isSent ? 'Blocca fattura' : "Il blocco e' disponibile solo dopo l'invio");
+    }
     if (deleteButton) {
       deleteButton.disabled = isLocked;
       deleteButton.title = isLocked
         ? "La fattura bloccata non puo' essere eliminata"
         : 'Elimina fattura';
     }
+  }
+
+  function syncInvoiceState(invoiceId, state = {}) {
+    getInvoiceItems(invoiceId).forEach(item => syncInvoiceItemState(item, state));
   }
 
   if (xmlDropZone && xmlInput) {
@@ -549,15 +1100,15 @@
     });
   }
 
-  async function saveRowStatus(row) {
-    const invoiceId = row.dataset.id;
+  async function saveInvoiceStatus(item) {
+    const invoiceId = item.dataset.id;
     const payload = {
-      firma: row.querySelector('[data-field="firma"]').checked,
-      invio: row.querySelector('[data-field="invio"]').checked,
-      data_incasso: row.querySelector('[data-field="data_incasso"]').value
+      firma: item.querySelector('[data-field="firma"]').checked,
+      invio: item.querySelector('[data-field="invio"]').checked,
+      data_incasso: item.querySelector('[data-field="data_incasso"]').value
     };
 
-    tableFeedback.textContent = 'Salvataggio...';
+    setFeedback('Salvataggio...');
     try {
       const response = await fetch(`/fatture/${invoiceId}/stato`, {
         method: 'POST',
@@ -566,17 +1117,16 @@
       });
       const data = await response.json();
       if (!response.ok || data.errore) throw new Error(data.errore || 'Errore salvataggio stato');
-      syncRowState(row, data);
-      tableFeedback.textContent = 'Stato aggiornato.';
-      setTimeout(() => { tableFeedback.textContent = ''; }, 1200);
+      syncInvoiceState(invoiceId, data);
+      setFeedback('Stato aggiornato.', 1200);
     } catch (error) {
-      tableFeedback.textContent = error.message;
+      setFeedback(error.message);
     }
   }
 
-  async function lockRow(row) {
-    const invoiceId = row.dataset.id;
-    tableFeedback.textContent = 'Blocco in corso...';
+  async function lockInvoice(item) {
+    const invoiceId = item.dataset.id;
+    setFeedback('Blocco in corso...');
     try {
       const response = await fetch(`/fatture/${invoiceId}/blocco`, {
         method: 'POST',
@@ -585,25 +1135,24 @@
       });
       const data = await response.json();
       if (!response.ok || data.errore) throw new Error(data.errore || 'Errore blocco fattura');
-      syncRowState(row, data);
-      tableFeedback.textContent = 'Fattura bloccata.';
-      setTimeout(() => { tableFeedback.textContent = ''; }, 1200);
+      syncInvoiceState(invoiceId, data);
+      setFeedback('Fattura bloccata.', 1200);
     } catch (error) {
-      tableFeedback.textContent = error.message;
+      setFeedback(error.message);
     }
   }
 
-  async function deleteRow(row) {
-    const invoiceId = row.dataset.id;
-    if (row.dataset.locked === '1') {
-      tableFeedback.textContent = "La fattura bloccata non puo' essere eliminata.";
+  async function deleteInvoice(item) {
+    const invoiceId = item.dataset.id;
+    if (item.dataset.locked === '1') {
+      setFeedback("La fattura bloccata non puo' essere eliminata.");
       return;
     }
     if (!window.confirm('Vuoi eliminare definitivamente questa fattura?')) {
       return;
     }
 
-    tableFeedback.textContent = 'Eliminazione in corso...';
+    setFeedback('Eliminazione in corso...');
     try {
       const response = await fetch(`/fatture/${invoiceId}/elimina`, {
         method: 'POST',
@@ -612,35 +1161,35 @@
       });
       const data = await response.json();
       if (!response.ok || data.errore) throw new Error(data.errore || 'Errore eliminazione fattura');
-      row.remove();
-      tableFeedback.textContent = 'Fattura eliminata.';
+      getInvoiceItems(invoiceId).forEach(node => node.remove());
+      setFeedback('Fattura eliminata.', 1200);
       setTimeout(() => { window.location.reload(); }, 500);
     } catch (error) {
-      tableFeedback.textContent = error.message;
+      setFeedback(error.message);
     }
   }
 
-  document.querySelectorAll('.status-field').forEach(input => {
+  document.querySelectorAll('[data-status-field]').forEach(input => {
     input.addEventListener('change', event => {
-      const row = event.target.closest('tr');
-      if (row) saveRowStatus(row);
+      const item = event.target.closest('[data-invoice-item]');
+      if (item) saveInvoiceStatus(item);
     });
   });
 
   document.querySelectorAll('[data-lock-button]').forEach(button => {
     button.addEventListener('click', event => {
-      const row = event.target.closest('tr');
-      if (row) lockRow(row);
+      const item = event.target.closest('[data-invoice-item]');
+      if (item) lockInvoice(item);
     });
   });
 
   document.querySelectorAll('[data-delete-button]').forEach(button => {
     button.addEventListener('click', event => {
-      const row = event.target.closest('tr');
-      if (row) deleteRow(row);
+      const item = event.target.closest('[data-invoice-item]');
+      if (item) deleteInvoice(item);
     });
   });
 
-  document.querySelectorAll('tbody tr[data-id]').forEach(row => syncRowState(row));
+  document.querySelectorAll('[data-invoice-item]').forEach(item => syncInvoiceItemState(item));
 </script>
 {% endblock %}
