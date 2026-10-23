@@ -1395,14 +1395,15 @@ def normalize_money_string(value) -> str:
     return fmt(parse_decimal(value))
 
 
-def nome_file_base(numero_fattura: str, data_fattura: str) -> str:
+def nome_file_base(numero_fattura: str, data_fattura: str, vat_code: str = "") -> str:
+    prefix = f"IT{vat_code.strip().upper()}" if vat_code and vat_code.strip() else "FATTURA"
     anno_2 = data_fattura[2:4]
     try:
         num = int(numero_fattura.split("/")[0].split("-")[0])
-        return f"IT_{anno_2}{num:03d}"
+        return f"{prefix}_{anno_2}{num:03d}"
     except (ValueError, IndexError):
         safe = re.sub(r"[^A-Za-z0-9_-]+", "-", numero_fattura).strip("-")
-        return f"IT_{anno_2}_{safe or 'fattura'}"
+        return f"{prefix}_{anno_2}_{safe or 'fattura'}"
 
 
 def split_invoice_number(value: str):
@@ -2817,7 +2818,11 @@ def attach_invoice_decree(invoice_id: int, uploaded_file) -> dict:
     if not row:
         raise ValueError("Fattura non trovata")
 
-    filename_base = row["filename_base"] or nome_file_base(row["invoice_number"], row["invoice_date"])
+    filename_base = row["filename_base"] or nome_file_base(
+        row["invoice_number"],
+        row["invoice_date"],
+        get_invoice_profile(row["owner_user_id"])["issuer_vat_code"],
+    )
     decree_path = DECREE_OUTPUT_DIR / f"{filename_base}__decreto.pdf"
     save_bytes(decree_path, payload)
 
@@ -2900,7 +2905,11 @@ def ensure_invoice_pdf(invoice_id: int) -> Path:
     xml_bytes = xml_path.read_bytes()
     preview_html = applica_xsl(xml_bytes)
     pdf_bytes = genera_pdf_fattura(preview_html)
-    filename_base = row["filename_base"] or nome_file_base(row["invoice_number"], row["invoice_date"])
+    filename_base = row["filename_base"] or nome_file_base(
+        row["invoice_number"],
+        row["invoice_date"],
+        get_invoice_profile(row["owner_user_id"])["issuer_vat_code"],
+    )
     pdf_path = PDF_OUTPUT_DIR / f"{filename_base}.pdf"
     save_bytes(pdf_path, pdf_bytes)
 
@@ -3389,7 +3398,7 @@ def genera():
     except Exception as exc:
         pdf_error = str(exc)
 
-    base = nome_file_base(data["numero_fattura"], data["data_fattura"])
+    base = nome_file_base(data["numero_fattura"], data["data_fattura"], profile["issuer_vat_code"])
     xml_path = XML_OUTPUT_DIR / f"{base}.xml"
     decree_path = DECREE_OUTPUT_DIR / f"{base}__decreto.pdf"
     pdf_path = PDF_OUTPUT_DIR / f"{base}.pdf"
@@ -3453,7 +3462,7 @@ def pacchetto():
     except Exception as exc:
         return jsonify({"errore": f"Errore generazione: {exc}"}), 500
 
-    base = nome_file_base(data["numero_fattura"], data["data_fattura"])
+    base = nome_file_base(data["numero_fattura"], data["data_fattura"], profile["issuer_vat_code"])
 
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
@@ -3485,6 +3494,7 @@ def importa_xml_fatture():
     except ValueError as exc:
         return jsonify({"errore": str(exc)}), 400
 
+    import_vat_code = get_invoice_profile(owner_user_id)["issuer_vat_code"]
     errors = []
     parsed_files = []
     force_import = is_truthy(request.form.get("force", "0"))
@@ -3523,7 +3533,11 @@ def importa_xml_fatture():
     for item in parsed_files:
         try:
             parsed = item["parsed"]
-            filename_base = nome_file_base(parsed["invoice_number"], parsed["invoice_date"])
+            filename_base = nome_file_base(
+                parsed["invoice_number"],
+                parsed["invoice_date"],
+                import_vat_code,
+            )
             xml_path = XML_OUTPUT_DIR / f"{filename_base}.xml"
             save_bytes(xml_path, item["xml_bytes"])
 
@@ -3615,7 +3629,9 @@ def aggiungi_fattura_manuale():
         "total_amount": fmt(totals["totale_documento"]),
         "payment_amount": fmt(totals["importo_pagamento"]),
         "payment_date": data["data_pagamento"],
-        "filename_base": nome_file_base(data["numero_fattura"], data["data_fattura"]),
+        "filename_base": nome_file_base(
+            data["numero_fattura"], data["data_fattura"], profile["issuer_vat_code"]
+        ),
         "notes": data.get("note", ""),
     }
 
