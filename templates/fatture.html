@@ -665,6 +665,9 @@
                 </td>
                 <td>
                   <div class="archive-docs">
+                    {% if not invoice.locked %}
+                    <a class="button ghost" href="/fatture/{{ invoice.id }}/modifica">Modifica</a>
+                    {% endif %}
                     <button
                       class="ghost lock-button{% if invoice.locked %} locked{% endif %}"
                       data-lock-button
@@ -777,6 +780,9 @@
               <div class="invoice-card-section">
                 <h4>Azioni</h4>
                 <div class="invoice-card-actions">
+                  {% if not invoice.locked %}
+                  <a class="button ghost" href="/fatture/{{ invoice.id }}/modifica">Modifica</a>
+                  {% endif %}
                   <button
                     class="ghost lock-button{% if invoice.locked %} locked{% endif %}"
                     data-lock-button

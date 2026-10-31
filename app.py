@@ -2165,6 +2165,8 @@ def invoice_row_to_view(row: sqlite3.Row) -> dict:
         "invoice_number": row["invoice_number"],
         "invoice_date": row["invoice_date"],
         "invoice_date_display": format_display_date(row["invoice_date"]),
+        "rg_number": row["rg_number"],
+        "rg_year": row["rg_year"],
         "rg_display": (
             f"{row['rg_number']}/{row['rg_year']}"
             if row["rg_number"] and row["rg_year"]
@@ -2764,6 +2766,123 @@ def update_invoice_status(invoice_id: int, signed: int, sent: int, receipt_date:
         "locked": bool(updated["locked"]),
         "receipt_date": updated["receipt_date"],
     }
+
+
+def update_invoice_details(invoice_id: int, payload: dict) -> dict:
+    row = get_invoice_row(invoice_id)
+    if not row:
+        raise ValueError("Fattura non trovata")
+    if row["locked"]:
+        raise ValueError("La fattura bloccata non puo' essere modificata")
+
+    profile = get_invoice_profile(row["owner_user_id"])
+    data = validate_invoice_data(payload, require_rg=False)
+    totals = calculate_totals(
+        parse_decimal(data["compenso"]),
+        parse_decimal(data["rimborsi_spese"]),
+        vat_rate=profile["vat_rate"],
+        withholding_rate=profile["withholding_rate"],
+    )
+    receipt_date = ensure_iso_date(payload.get("data_incasso", ""), "data_incasso", required=False)
+    filename_base = nome_file_base(data["numero_fattura"], data["data_fattura"], profile["issuer_vat_code"])
+
+    with get_connection() as conn:
+        duplicate = conn.execute(
+            """
+            SELECT id
+            FROM invoices
+            WHERE owner_user_id = ?
+              AND invoice_number = ?
+              AND invoice_date = ?
+              AND id <> ?
+            """,
+            (row["owner_user_id"], data["numero_fattura"], data["data_fattura"], invoice_id),
+        ).fetchone()
+        if duplicate:
+            raise ValueError("Esiste gia' una fattura con lo stesso numero e data per questo utente")
+
+        conn.execute(
+            """
+            UPDATE invoices
+            SET invoice_number = ?,
+                invoice_date = ?,
+                rg_number = ?,
+                rg_year = ?,
+                payer = ?,
+                compenso = ?,
+                expense_reimbursement = ?,
+                taxable_amount = ?,
+                vat_amount = ?,
+                withholding_amount = ?,
+                total_amount = ?,
+                payment_amount = ?,
+                payment_date = ?,
+                receipt_date = ?,
+                filename_base = ?,
+                notes = ?,
+                updated_at = ?
+            WHERE id = ?
+            """,
+            (
+                data["numero_fattura"],
+                data["data_fattura"],
+                data["numero_rg"],
+                data["anno_rg"],
+                data["pagante"],
+                fmt(totals["compenso"]),
+                fmt(totals["rimborsi_spese"]),
+                fmt(totals["imponibile"]),
+                fmt(totals["iva"]),
+                fmt(totals["ritenuta"]),
+                fmt(totals["totale_documento"]),
+                fmt(totals["importo_pagamento"]),
+                data["data_pagamento"],
+                receipt_date,
+                filename_base,
+                (payload.get("note") or "").strip(),
+                now_iso(),
+                invoice_id,
+            ),
+        )
+
+    # If a decree PDF is available, regenerate XML/PDF using updated invoice data
+    # while preserving the original decree attachment bytes and source filename.
+    decree_path = stored_path(row["decree_path"])
+    decree_filename = original_import_filename(row["decree_source_filename"]) or f"{filename_base}__decreto.pdf"
+    if decree_path and decree_path.exists():
+        decree_bytes = decree_path.read_bytes()
+        xml_bytes = genera_xml(data, decree_bytes, decree_filename, profile)
+        preview_html = applica_xsl(xml_bytes)
+        invoice_pdf_bytes = genera_pdf_fattura(preview_html)
+
+        next_xml_path = XML_OUTPUT_DIR / f"{filename_base}.xml"
+        next_pdf_path = PDF_OUTPUT_DIR / f"{filename_base}.pdf"
+        save_bytes(next_xml_path, xml_bytes)
+        save_bytes(next_pdf_path, invoice_pdf_bytes)
+
+        with get_connection() as conn:
+            conn.execute(
+                """
+                UPDATE invoices
+                SET xml_path = ?,
+                    pdf_path = ?,
+                    updated_at = ?
+                WHERE id = ?
+                """,
+                (str(next_xml_path), str(next_pdf_path), now_iso(), invoice_id),
+            )
+
+        old_xml_path = stored_path(row["xml_path"])
+        old_pdf_path = stored_path(row["pdf_path"])
+        for old_path, new_path in ((old_xml_path, next_xml_path), (old_pdf_path, next_pdf_path)):
+            if not old_path or old_path == new_path:
+                continue
+            try:
+                old_path.unlink(missing_ok=True)
+            except OSError:
+                app.logger.warning("Impossibile eliminare vecchio file fattura %s: %s", invoice_id, old_path)
+
+    return invoice_row_to_view(get_invoice_row(invoice_id))
 
 
 def lock_invoice(invoice_id: int) -> dict:
@@ -3674,6 +3793,55 @@ def aggiorna_stato_fattura(invoice_id: int):
         return jsonify({"errore": str(exc)}), 400
 
     return jsonify({"ok": True, **updated})
+
+
+@app.route("/fatture/<int:invoice_id>/modifica", methods=["GET", "POST"])
+def modifica_fattura(invoice_id: int):
+    row = get_accessible_invoice_row(invoice_id)
+    if not row:
+        flash("Fattura non trovata.", "error")
+        return redirect(url_for("elenco_fatture"))
+    if row["locked"]:
+        flash("La fattura bloccata non puo' essere modificata.", "error")
+        return redirect(url_for("elenco_fatture"))
+
+    if request.method == "POST":
+        payload = {
+            "numero_fattura": request.form.get("numero_fattura", "").strip(),
+            "data_fattura": request.form.get("data_fattura", "").strip(),
+            "numero_rg": request.form.get("numero_rg", "").strip(),
+            "anno_rg": request.form.get("anno_rg", "").strip(),
+            "pagante": request.form.get("pagante", "").strip(),
+            "compenso": request.form.get("compenso", "").strip(),
+            "rimborsi_spese": request.form.get("rimborsi_spese", "").strip(),
+            "data_pagamento": request.form.get("data_pagamento", "").strip(),
+            "data_incasso": request.form.get("data_incasso", "").strip(),
+            "note": request.form.get("note", "").strip(),
+        }
+        try:
+            update_invoice_details(invoice_id, payload)
+            flash("Fattura aggiornata correttamente.", "success")
+            return redirect(url_for("elenco_fatture"))
+        except ValueError as exc:
+            flash(str(exc), "error")
+            row_data = dict(row)
+            row_data.update(
+                {
+                    "invoice_number": payload["numero_fattura"],
+                    "invoice_date": payload["data_fattura"],
+                    "rg_number": payload["numero_rg"],
+                    "rg_year": payload["anno_rg"],
+                    "payer": payload["pagante"],
+                    "compenso": payload["compenso"] or row["compenso"],
+                    "expense_reimbursement": payload["rimborsi_spese"] or row["expense_reimbursement"],
+                    "payment_date": payload["data_pagamento"],
+                    "receipt_date": payload["data_incasso"],
+                    "notes": payload["note"],
+                }
+            )
+            row = row_data
+
+    return render_template("invoice_edit.html", invoice=invoice_row_to_view(row))
 
 
 @app.route("/fatture/<int:invoice_id>/blocco", methods=["POST"])

@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Modifica Fattura{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 980px; margin: 0 auto;">
+  <div class="card-body">
+    <div class="toolbar" style="margin: -20px -20px 20px; border-radius: 16px 16px 0 0;">
+      <div>
+        <strong>Modifica fattura {{ invoice.invoice_number }}</strong>
+        <div class="small-note">Aggiorna i dati anagrafici, economici e le date della fattura.</div>
+      </div>
+      <a class="button secondary" href="/fatture">Torna all'archivio</a>
+    </div>
+
+    <form method="post">
+      <div class="row-2">
+        <div class="field">
+          <label for="numero_fattura">Numero fattura</label>
+          <input id="numero_fattura" name="numero_fattura" type="text" value="{{ invoice.invoice_number }}" required>
+        </div>
+        <div class="field">
+          <label for="data_fattura">Data fattura</label>
+          <input id="data_fattura" name="data_fattura" type="date" value="{{ invoice.invoice_date }}" required>
+        </div>
+      </div>
+
+      <div class="row-2">
+        <div class="field">
+          <label for="numero_rg">Numero R.G.</label>
+          <input id="numero_rg" name="numero_rg" type="text" value="{{ invoice.rg_number }}">
+        </div>
+        <div class="field">
+          <label for="anno_rg">Anno R.G.</label>
+          <input id="anno_rg" name="anno_rg" type="text" maxlength="4" value="{{ invoice.rg_year }}">
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="pagante">Cliente / Pagante</label>
+        <input id="pagante" name="pagante" type="text" value="{{ invoice.payer }}" required>
+      </div>
+
+      <div class="row-2">
+        <div class="field">
+          <label for="compenso">Compenso (€)</label>
+          <input id="compenso" name="compenso" type="number" step="0.01" min="0" value="{{ invoice.compenso.replace('.', '').replace(',', '.') }}" required>
+        </div>
+        <div class="field">
+          <label for="rimborsi_spese">Rimborsi spese (€)</label>
+          <input id="rimborsi_spese" name="rimborsi_spese" type="number" step="0.01" min="0" value="{{ invoice.expense_reimbursement.replace('.', '').replace(',', '.') }}" required>
+        </div>
+      </div>
+
+      <div class="row-2">
+        <div class="field">
+          <label for="data_pagamento">Data pagamento</label>
+          <input id="data_pagamento" name="data_pagamento" type="date" value="{{ invoice.payment_date }}" required>
+        </div>
+        <div class="field">
+          <label for="data_incasso">Data incasso</label>
+          <input id="data_incasso" name="data_incasso" type="date" value="{{ invoice.receipt_date }}">
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="note">Note</label>
+        <textarea id="note" name="note" placeholder="Opzionale">{{ invoice.notes }}</textarea>
+      </div>
+
+      <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px;">
+        <a class="button ghost" href="/fatture">Annulla</a>
+        <button class="primary" type="submit">Salva modifiche</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
