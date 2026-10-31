@@ -35,7 +35,7 @@ related:
 - `GET /`
 - `POST /estrai`
 - `POST /genera`
-- `POST /pacchetto`
+- `GET /fatture/<invoice_id>/pacchetto`
 
 ## Archivio
 

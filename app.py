@@ -1415,6 +1415,37 @@ def split_invoice_number(value: str):
     return number, suffix
 
 
+def find_invoice_number_conflict(owner_user_id: int, invoice_number: str, invoice_date: str, exclude_id: int | None = None):
+    """Fattura gia' esistente con lo stesso numero nello stesso anno, oppure con lo
+    stesso nome file (che verrebbe sovrascritto su disco)."""
+    filename_base = nome_file_base(
+        invoice_number, invoice_date, get_invoice_profile(owner_user_id)["issuer_vat_code"]
+    )
+    with get_connection() as conn:
+        return conn.execute(
+            """
+            SELECT id, invoice_number, invoice_date, rg_number, rg_year
+            FROM invoices
+            WHERE id <> ?
+              AND (
+                    (owner_user_id = ? AND invoice_number = ? AND substr(invoice_date, 1, 4) = substr(?, 1, 4))
+                 OR filename_base = ?
+              )
+            ORDER BY id
+            LIMIT 1
+            """,
+            (exclude_id or -1, owner_user_id, invoice_number, invoice_date, filename_base),
+        ).fetchone()
+
+
+def invoice_conflict_message(row) -> str:
+    rg = f" (R.G. {row['rg_number']}/{row['rg_year']})" if row["rg_number"] else ""
+    return (
+        f"Esiste gia' la fattura {row['invoice_number']} del {format_display_date(row['invoice_date'])}{rg}. "
+        "Usa un altro numero, oppure correggi o elimina quella esistente dall'archivio."
+    )
+
+
 def get_suggested_invoice_number(owner_user_id: int | None = None, default="1/e") -> str:
     best_number = 0
     best_suffix = "/e"
@@ -2786,21 +2817,13 @@ def update_invoice_details(invoice_id: int, payload: dict) -> dict:
     receipt_date = ensure_iso_date(payload.get("data_incasso", ""), "data_incasso", required=False)
     filename_base = nome_file_base(data["numero_fattura"], data["data_fattura"], profile["issuer_vat_code"])
 
-    with get_connection() as conn:
-        duplicate = conn.execute(
-            """
-            SELECT id
-            FROM invoices
-            WHERE owner_user_id = ?
-              AND invoice_number = ?
-              AND invoice_date = ?
-              AND id <> ?
-            """,
-            (row["owner_user_id"], data["numero_fattura"], data["data_fattura"], invoice_id),
-        ).fetchone()
-        if duplicate:
-            raise ValueError("Esiste gia' una fattura con lo stesso numero e data per questo utente")
+    duplicate = find_invoice_number_conflict(
+        row["owner_user_id"], data["numero_fattura"], data["data_fattura"], exclude_id=invoice_id
+    )
+    if duplicate:
+        raise ValueError(invoice_conflict_message(duplicate))
 
+    with get_connection() as conn:
         conn.execute(
             """
             UPDATE invoices
@@ -3489,6 +3512,10 @@ def genera():
     except ValueError as exc:
         return jsonify({"errore": str(exc)}), 400
 
+    conflict = find_invoice_number_conflict(owner_user_id, data["numero_fattura"], data["data_fattura"])
+    if conflict:
+        return jsonify({"errore": invoice_conflict_message(conflict)}), 409
+
     pdf_bytes = pdf_file.read()
     pdf_filename = pdf_file.filename
     totals = calculate_totals(
@@ -3556,38 +3583,32 @@ def genera():
     )
 
 
-@app.route("/pacchetto", methods=["POST"])
-def pacchetto():
-    pdf_file = request.files.get("pdf")
-    if not pdf_file or pdf_file.filename == "":
-        return jsonify({"errore": "Nessun file PDF caricato"}), 400
-
+@app.route("/fatture/<int:invoice_id>/pacchetto")
+def pacchetto_fattura(invoice_id: int):
+    # Lo ZIP si costruisce dai file salvati della fattura, non dal modulo:
+    # dopo "Genera" il campo numero e' gia' avanzato al successivo.
+    row = get_accessible_invoice_row(invoice_id)
+    if not row:
+        return jsonify({"errore": "Fattura non trovata"}), 404
+    xml_path = stored_path(row["xml_path"])
+    if not xml_path:
+        return jsonify({"errore": "XML non disponibile"}), 404
     try:
-        owner_user_id = resolve_owner_user_id(request.form.get("owner_user_id"))
-        profile = get_invoice_profile(owner_user_id)
-        form_data = read_invoice_form()
-        form_data["pagante"] = form_data.get("pagante") or profile["default_payer"]
-        data = validate_invoice_data(form_data, require_rg=True)
+        pdf_path = ensure_invoice_pdf(invoice_id)
     except ValueError as exc:
         return jsonify({"errore": str(exc)}), 400
-
-    pdf_bytes = pdf_file.read()
-    pdf_filename = pdf_file.filename
-
-    try:
-        xml_bytes = genera_xml(data, pdf_bytes, pdf_filename, profile)
-        preview_html = applica_xsl(xml_bytes)
-        fattura_pdf = genera_pdf_fattura(preview_html)
     except Exception as exc:
-        return jsonify({"errore": f"Errore generazione: {exc}"}), 500
+        return jsonify({"errore": f"Errore generazione PDF: {exc}"}), 500
 
-    base = nome_file_base(data["numero_fattura"], data["data_fattura"], profile["issuer_vat_code"])
+    base = row["filename_base"] or xml_path.stem
+    decree_path = stored_path(row["decree_path"])
 
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
-        zf.writestr(f"{base}.xml", xml_bytes)
-        zf.writestr(f"{base}.pdf", fattura_pdf)
-        zf.writestr(pdf_filename, pdf_bytes)
+        zf.write(xml_path, f"{base}.xml")
+        zf.write(pdf_path, f"{base}.pdf")
+        if decree_path:
+            zf.write(decree_path, row["decree_source_filename"] or decree_path.name)
     zip_buffer.seek(0)
 
     return send_file(

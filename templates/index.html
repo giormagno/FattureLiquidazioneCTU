@@ -161,6 +161,11 @@
   let xmlB64 = '';
   let pdfB64 = '';
   let filenameBase = '';
+  let lastInvoiceId = null;
+  // Dopo una generazione riuscita il decreto caricato e' "consumato": per una
+  // nuova fattura serve un nuovo decreto, altrimenti un secondo clic su Genera
+  // creerebbe la fattura successiva con lo stesso decreto.
+  let decreeUsed = false;
   let extractionMethod = 'manual';
   let lastOwnerId = String(fields.owner_user_id.value || '');
 
@@ -302,7 +307,14 @@
     URL.revokeObjectURL(url);
   }
 
+  function setGeneraLocked(locked) {
+    decreeUsed = locked;
+    btnGenera.disabled = locked;
+    btnGenera.title = locked ? 'Fattura gia\' generata per questo decreto: carica un nuovo decreto per la prossima.' : '';
+  }
+
   async function analyseFile(file) {
+    setGeneraLocked(false);
     fileLabel.textContent = file.name;
     extractionMethod = 'manual';
     showBadge('Analisi del decreto in corso…', 'loading');
@@ -401,6 +413,8 @@
       xmlB64 = data.xml_b64 || '';
       pdfB64 = data.pdf_b64 || '';
       filenameBase = data.filename_base || 'fattura';
+      lastInvoiceId = data.invoice_id || null;
+      decreeUsed = true;
       if (data.suggested_invoice_number) {
         fields.numero_fattura.value = data.suggested_invoice_number;
       }
@@ -415,7 +429,7 @@
       btnZip.classList.remove('hidden');
       if (pdfB64) btnPdf.classList.remove('hidden');
 
-      showMessage(successBox, data.storage_message || 'Fattura generata correttamente.', 'success');
+      showMessage(successBox, (data.storage_message || 'Fattura generata correttamente.') + ' Per la prossima fattura carica un nuovo decreto.', 'success');
       if (data.pdf_warning) {
         showMessage(errorBox, 'PDF fattura non disponibile: ' + data.pdf_warning, 'warning');
       }
@@ -423,7 +437,7 @@
       placeholderText.textContent = 'L\'anteprima della fattura comparira\' qui.';
       showMessage(errorBox, error.message, 'error');
     } finally {
-      btnGenera.disabled = false;
+      setGeneraLocked(decreeUsed);
       spinner.style.display = 'none';
     }
   });
@@ -438,16 +452,15 @@
 
   btnZip.addEventListener('click', async () => {
     hideMessages();
-    const validationError = validateForm();
-    if (validationError) {
-      showMessage(errorBox, validationError, 'error');
+    if (!lastInvoiceId) {
+      showMessage(errorBox, 'Genera prima la fattura.', 'error');
       return;
     }
 
     btnZip.disabled = true;
     btnZip.textContent = 'Creazione ZIP…';
     try {
-      const response = await fetch('/pacchetto', { method: 'POST', body: buildFormData() });
+      const response = await fetch(`/fatture/${lastInvoiceId}/pacchetto`);
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
         throw new Error(data.errore || 'Errore creazione ZIP');
